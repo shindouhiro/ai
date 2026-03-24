@@ -9,17 +9,26 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
 
-    // AI SDK 6.x 要求使用 ModelMessage 格式（带有 content 且不允许 id）
-    // 而前端发来的 UIMessage 通常带有 id，且可能是 parts 格式
+    // 强力清洗历史记录：只保留 role 和 content，并强制 content 为字符串
     const modelMessages = messages.map((m: any) => {
-      // 移除 id
-      const { id, parts, content, ...rest } = m;
+      let processedContent = '';
+      
+      // 如果存在 parts 数组，提取所有 text 零件的内容并合并
+      if (Array.isArray(m.parts)) {
+        processedContent = m.parts
+          .filter((p: any) => p.type === 'text')
+          .map((p: any) => p.text || '')
+          .join('\n');
+      } else {
+        processedContent = m.content || '';
+      }
+
+      // 仅返回 ModelMessage 架构白名单中的两个核心字段
       return {
-        ...rest,
-        // 如果有 parts 则作为 content，否则使用原有的 content
-        content: parts || content || '',
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: processedContent.trim(),
       };
-    });
+    }).filter((m: any) => m.content); // 过滤掉无效消息
 
     const result = streamText({
       model: customOpenAI('gpt-5.4'),
