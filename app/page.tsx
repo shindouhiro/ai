@@ -2,6 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { Streamdown } from 'streamdown';
+import "streamdown/styles.css";
 import { Send, User, Bot, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { clsx, type ClassValue } from 'clsx';
@@ -117,22 +118,27 @@ export default function ChatPage() {
 
                 {/* 气泡 */}
                 <div className={cn(
-                  "flex flex-col gap-2",
+                  "flex flex-col gap-2 flex-1 min-w-0", // min-w-0 是允许 flex 项目正常溢出隐藏的关键
                   message.role === 'user' ? "items-end" : "items-start"
                 )}>
                   <div className={cn(
-                    "px-4 py-3 rounded-2xl transition-all duration-300",
+                    "px-4 py-3 rounded-2xl transition-all duration-300 w-fit max-w-full", // w-fit 控制宽度跟随内容，max-w-full 限制最大宽度
                     message.role === 'user'
                       ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 rounded-tr-none"
-                      : "bg-white/5 text-white/90 border border-white/5 rounded-tl-none prose prose-invert prose-p:leading-relaxed max-w-none"
+                      : "bg-white/5 text-white/90 border border-white/5 rounded-tl-none prose prose-invert prose-p:leading-relaxed overflow-x-auto scrollbar-thin"
                   )}>
                     {message.role === 'user' ? (
-                      <div className="whitespace-pre-wrap">{getMessageText(message)}</div>
+                      <div className="whitespace-pre-wrap break-words">{getMessageText(message)}</div>
                     ) : (
                       /* 使用 Streamdown 进行 Markdown 渲染 */
-                      <Streamdown>
-                        {getMessageText(message)}
-                      </Streamdown>
+                      <div className="max-w-full overflow-x-auto pb-2">
+                        <Streamdown
+                          animated
+                          isAnimating={isLoading && messages.indexOf(message) === messages.length - 1}
+                        >
+                          {getMessageText(message)}
+                        </Streamdown>
+                      </div>
                     )}
                   </div>
                   <time className="text-[10px] uppercase text-white/30 tracking-widest px-1">
