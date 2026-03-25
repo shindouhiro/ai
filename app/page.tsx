@@ -1,10 +1,10 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
+import { DefaultChatTransport, convertFileListToFileUIParts } from 'ai';
 import { Streamdown } from 'streamdown';
 import "streamdown/styles.css";
-import { Send, User, Bot, Loader2 } from 'lucide-react';
+import { Send, User, Bot, Loader2, Paperclip, X, Image as ImageIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -36,17 +36,43 @@ export default function ChatPage() {
     return '';
   };
 
+  const getMessageImages = (message: any) => {
+    if (!Array.isArray(message.parts)) return [];
+    return message.parts.filter((part: any) => part.type === 'image');
+  };
+
   const [input, setInput] = useState('');
+  const [files, setFiles] = useState<any[]>([]); // Using any[] here to avoid import issues or complex types if needed, or follow FileUIPart
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newParts = await convertFileListToFileUIParts(e.target.files);
+      setFiles((prev) => [...prev, ...newParts]);
+      // Clear input value to allow selecting same file again
+      e.target.value = '';
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!input.trim()) return;
-    sendMessage({ text: input });
+    if (!input.trim() && files.length === 0) return;
+    
+    sendMessage({ 
+      text: input,
+      files: files
+    });
+    
     setInput('');
+    setFiles([]);
   };
 
   const isLoading = status === 'submitted' || status === 'streaming';
@@ -129,7 +155,17 @@ export default function ChatPage() {
                       : "bg-white/5 text-white/90 border border-white/5 rounded-tl-none prose prose-invert prose-p:leading-relaxed overflow-x-auto scrollbar-thin"
                   )}>
                     {message.role === 'user' ? (
-                      <div className="whitespace-pre-wrap break-words">{getMessageText(message)}</div>
+                      <div className="flex flex-col gap-3">
+                        {getMessageImages(message).map((part: any, i: number) => (
+                           <img 
+                             key={i} 
+                             src={part.url || part.image} 
+                             alt="Uploaded" 
+                             className="max-w-full rounded-lg border border-white/10"
+                           />
+                        ))}
+                        <div className="whitespace-pre-wrap break-words">{getMessageText(message)}</div>
+                      </div>
                     ) : (
                       /* 使用 Streamdown 进行 Markdown 渲染 */
                       <div className="max-w-full overflow-x-auto pb-2">
@@ -169,25 +205,65 @@ export default function ChatPage() {
         <footer className="p-8 border-t border-white/[0.08] bg-black/20">
           <form
             onSubmit={handleSubmit}
-            className="group relative flex items-center transition-all duration-300"
+            className="group relative flex flex-col gap-4 transition-all duration-300"
           >
-            <input
-              value={input}
-              onChange={handleInputChange}
-              placeholder="发送消息..."
-              className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl pl-6 pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-white/20"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="absolute right-2 p-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-white/20 text-white rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30"
-            >
-              <Send className="w-5 h-5" />
-            </button>
+            {/* 图片预览 */}
+            {files.length > 0 && (
+              <div className="flex flex-wrap gap-3 mb-2">
+                {files.map((file, index) => (
+                  <div key={index} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/20 group/item">
+                    <img 
+                      src={file.url} 
+                      className="w-full h-full object-cover" 
+                      alt="preview" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      className="absolute top-1 right-1 p-1 bg-black/60 rounded-full hover:bg-black/80 transition-colors"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="relative flex items-center">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                multiple
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="absolute left-2 p-3 text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+              <input
+                value={input}
+                onChange={handleInputChange}
+                placeholder={files.length > 0 ? "描述一下这些图片..." : "发送消息..."}
+                className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl pl-14 pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-white/20"
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={isLoading || (!input.trim() && files.length === 0)}
+                className="absolute right-2 p-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-white/20 text-white rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
           </form>
           <p className="mt-4 text-center text-[10px] text-white/20 tracking-wider">
-            对话记录将通过封装的 Vercel AI 提供者实现流式分发
+            支持图片上传与实时分析 • 基于 Vercel AI SDK 统一接口
           </p>
         </footer>
       </div>

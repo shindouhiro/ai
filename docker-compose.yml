@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  ai-app:
+    image: shindouhiro/ai:latest
+    container_name: ai-assistant
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}  # 如果您后续将 API Key 移出代码，可以使用这类变量
+    # 即使在代码中硬编码了，提供环境变量也是一种好的运维习惯
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
