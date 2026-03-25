@@ -215,7 +215,10 @@ export default function ChatPage() {
                       </div>
                     ) : (
                       /* 使用 Streamdown 进行 Markdown 渲染 */
-                      <div className="max-w-full overflow-x-auto pb-2">
+                      <div className={cn(
+                        "max-w-full overflow-x-auto pb-2 transition-all",
+                        isLoading && messages.indexOf(message) === messages.length - 1 && "is-streaming streamdown-content-animated"
+                      )}>
                         <Streamdown
                           animated
                           isAnimating={isLoading && messages.indexOf(message) === messages.length - 1}

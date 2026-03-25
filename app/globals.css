@@ -85,3 +85,27 @@ body {
   background: rgba(45, 45, 45, 0.5) !important;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* 渐入淡淡显示的动画效果 */
+@keyframes streamFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* 针对 Streamdown 动态生成的内容应用动画 */
+.streamdown-content-animated * {
+  animation: streamFadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* 优化动画连贯性，确保不会重复触发（仅对最后增加的内容有效，通过 parent 容器控制） */
+.is-streaming .prose > *:last-child {
+  animation: streamFadeIn 0.6s ease-out forwards;
+}
