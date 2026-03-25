@@ -3,22 +3,12 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, convertFileListToFileUIParts } from 'ai';
 import { Streamdown } from 'streamdown';
-import { Send, User, Bot, Loader2, Paperclip, X, Image as ImageIcon, Sun, Moon, ArrowDown } from 'lucide-react';
+import { Send, User, Bot, Paperclip, X, Sun, Moon, ArrowDown } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { code, createCodePlugin } from "@streamdown/code";
-import { mermaid, createMermaidPlugin } from "@streamdown/mermaid";
-import { math } from "@streamdown/math";
-import { cjk } from "@streamdown/cjk";
-
-/**
- * Tailwind 类名合并助手
- */
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { cn } from '../lib/utils';
+import { useChatScroll } from '../hooks/use-chat-scroll';
+import { useStreamdownPlugins } from '../hooks/use-streamdown-plugins';
 
 /**
  * AI 聊天演示页面
@@ -90,47 +80,8 @@ export default function ChatPage() {
 
   const isLoading = status === 'submitted' || status === 'streaming';
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
-
-  // 检查是否在底部
-  const handleScroll = useCallback(() => {
-    if (!scrollRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    // 允许 100 像素的误差，提高容错性
-    const atBottom = scrollHeight - scrollTop - clientHeight < 100;
-    setIsAtBottom(atBottom);
-  }, []);
-
-  // 消息自动滚动到底部
-  useEffect(() => {
-    if (scrollRef.current && isAtBottom && (status === 'streaming' || status === 'submitted')) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, isAtBottom, status]);
-
-  // 当进入加载状态且当前已经在底部时，锁定到底部
-  // 当进入加载状态且当前已经在底部时，锁定到底部
-  useEffect(() => {
-    if (status === 'submitted' && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      setIsAtBottom(true);
-    }
-  }, [status]);
-
-  // 当切换皮肤或状态时，更新 Streamdown 插件的主题配置
-  const streamdownPlugins = useMemo(() => {
-    return {
-      code, // code 插件可自动识别 shikiTheme 数组或单一字符串
-      mermaid: createMermaidPlugin({
-        config: {
-          theme: resolvedTheme === 'dark' ? 'dark' : 'default',
-        }
-      }),
-      math,
-      cjk,
-    };
-  }, [resolvedTheme]);
+  const { scrollRef, isAtBottom, handleScroll, scrollToBottom } = useChatScroll(messages, status);
+  const streamdownPlugins = useStreamdownPlugins(resolvedTheme);
 
   return (
     <main suppressHydrationWarning className="relative min-h-screen flex flex-col items-center justify-center p-0 md:p-4 bg-white dark:bg-[#0a0a0a] text-black dark:text-white overflow-hidden transition-colors duration-300">
@@ -270,15 +221,7 @@ export default function ChatPage() {
           {/* 回到底部按钮 (当用户手动向上滚动且有新消息时显示) */}
           {!isAtBottom && messages.length > 0 && (
             <button
-              onClick={() => {
-                if (scrollRef.current) {
-                  scrollRef.current.scrollTo({
-                    top: scrollRef.current.scrollHeight,
-                    behavior: 'smooth'
-                  });
-                  setIsAtBottom(true);
-                }
-              }}
+              onClick={scrollToBottom}
               className="sticky bottom-4 left-1/2 -translate-x-1/2 p-2 rounded-full bg-indigo-600 text-white shadow-xl hover:bg-indigo-500 transition-all z-20 flex items-center gap-2 text-xs font-medium px-4 animate-in fade-in slide-in-from-bottom-2"
             >
               <ArrowDown className="w-4 h-4" />
