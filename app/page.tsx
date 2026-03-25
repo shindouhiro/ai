@@ -87,15 +87,15 @@ export default function ChatPage() {
   }, [messages]);
 
   return (
-    <main className="relative min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0a] text-white overflow-hidden">
+    <main className="relative min-h-screen flex flex-col items-center justify-center p-0 md:p-4 bg-[#0a0a0a] text-white overflow-hidden">
       {/* 炫酷背景渐变 */}
       <div className="absolute top-0 left-0 w-full h-full -z-10 bg-[radial-gradient(circle_at_20%_30%,rgba(124,58,237,0.15),transparent),radial-gradient(circle_at_80%_70%,rgba(6,182,212,0.15),transparent)]" />
 
       {/* 玻璃拟态聊天容器 */}
-      <div className="w-full max-w-4xl h-[85vh] flex flex-col bg-white/[0.03] backdrop-blur-xl border border-white/[0.08] shadow-2xl rounded-3xl overflow-hidden">
+      <div className="w-full max-w-4xl h-screen md:h-[85vh] flex flex-col bg-white/[0.03] backdrop-blur-xl border-x-0 border-y-0 md:border md:border-white/[0.08] shadow-2xl rounded-none md:rounded-3xl overflow-hidden">
 
         {/* 页眉 */}
-        <header className="px-8 py-6 border-b border-white/[0.08] flex items-center justify-between">
+        <header className="px-4 py-4 md:px-8 md:py-6 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-violet-900/40">
               <Bot className="w-6 h-6 text-white" />
@@ -113,7 +113,7 @@ export default function ChatPage() {
         {/* 聊天消息区域 */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto px-8 py-10 space-y-10 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
+          className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10 space-y-6 md:space-y-10 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
         >
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center opacity-30 select-none">
@@ -125,7 +125,7 @@ export default function ChatPage() {
               <div
                 key={message.id}
                 className={cn(
-                  "group flex gap-6 max-w-[90%]",
+                  "group flex gap-3 md:gap-6 max-w-[95%] md:max-w-[90%]",
                   message.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
                 )}
               >
@@ -186,7 +186,7 @@ export default function ChatPage() {
             ))
           )}
           {isLoading && !getMessageText(messages[messages.length - 1]) && (
-            <div className="flex gap-6 mr-auto">
+            <div className="flex gap-3 md:gap-6 mr-auto">
               <div className="w-10 h-10 rounded-xl flex shrink-0 items-center justify-center bg-white/5 border border-white/10">
                 <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
               </div>
@@ -202,7 +202,7 @@ export default function ChatPage() {
         </div>
 
         {/* 输入框区域 */}
-        <footer className="p-8 border-t border-white/[0.08] bg-black/20">
+        <footer className="p-4 md:p-8 border-t border-white/[0.08] bg-black/20">
           <form
             onSubmit={handleSubmit}
             className="group relative flex flex-col gap-4 transition-all duration-300"
