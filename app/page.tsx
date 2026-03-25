@@ -321,7 +321,7 @@ export default function ChatPage() {
               <button
                 type="submit"
                 disabled={isLoading || (!input.trim() && files.length === 0)}
-                className="absolute right-2 p-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/5 disabled:text-white/20 text-white rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30"
+                className="absolute right-2 p-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-black/5 dark:disabled:bg-white/5 disabled:text-black/20 dark:disabled:text-white/20 text-white rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30"
               >
                 <Send className="w-5 h-5" />
               </button>
