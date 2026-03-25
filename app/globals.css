@@ -9,6 +9,11 @@
 }
 
 :root {
+  --background: #fdfdfd;
+  --foreground: #0a0a0a;
+}
+
+[class~="dark"] {
   --background: #0a0a0a;
   --foreground: #ffffff;
 }
@@ -24,6 +29,10 @@ body {
 /* 隐藏横向滚动条 */
 * {
   scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
+}
+
+.dark * {
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
@@ -37,22 +46,39 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(128, 128, 128, 0.2);
   border-radius: 10px;
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 ::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
 /* Streamdown 渲染器的额外基础样式 */
 .prose {
+  color: #1a1a1a;
+}
+
+.dark .prose {
   color: rgba(255, 255, 255, 0.9);
 }
 
 .prose pre {
-  background: rgba(45, 45, 45, 0.5) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
   backdrop-filter: blur(8px);
+}
+
+.dark .prose pre {
+  background: rgba(45, 45, 45, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
