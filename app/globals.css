@@ -86,43 +86,50 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* 丝滑淡入显示的动画效果 (解决打字机抖动) */
-@keyframes silkyFadeIn {
+/* Gemini 风格的渐进显示动画 */
+@keyframes geminiReveal {
   from {
     opacity: 0;
     transform: translateY(2px);
-    filter: blur(1px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-    filter: blur(0);
   }
 }
 
-/* 针对流式内容的平滑控制 */
-.streamdown-content-animated {
-  transition: all 0.5s ease-out;
+/* Gemini 风格的多彩流光 Loading */
+@keyframes geminiLoadingShimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-/* 这里的关键点是：我们不对每一个微小的 span 进行动画，这样会很乱抖。
-   我们只对新生成的基础块级元素进行一次温和的淡入 */
+.gemini-loading-bar {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570, #4285f4);
+  background-size: 300% 300%;
+  animation: geminiLoadingShimmer 3s ease infinite;
+  opacity: 0.8;
+  filter: blur(1px);
+}
+
 .is-streaming .prose p, 
 .is-streaming .prose li, 
 .is-streaming .prose pre,
 .is-streaming .prose blockquote {
-  animation: silkyFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: geminiReveal 1.2s cubic-bezier(0.19, 1, 0.22, 1) forwards;
   will-change: opacity, transform;
 }
 
-/* 如果 Streamdown 有光标标识，确保它不产生抖动 */
-.is-streaming .streamdown-cursor {
-  display: inline-block;
-  width: 2px;
-  height: 1em;
-  background: currentColor;
-  margin-left: 2px;
-  vertical-align: middle;
-  animation: none !important; /* 取消呼吸灯效果，减少抖动感 */
-  opacity: 0.5;
+/* 去除可能干扰的打字机副作用 */
+.streamdown-content-animated .streamdown-cursor {
+  display: none !important;
+}
+
+/* 消息容器进入动画 */
+.message-enter {
+  animation: geminiReveal 0.6s cubic-bezier(0.2, 1, 0.2, 1) forwards;
 }

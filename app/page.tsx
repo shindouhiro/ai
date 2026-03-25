@@ -172,7 +172,7 @@ export default function ChatPage() {
               <div
                 key={message.id}
                 className={cn(
-                  "group flex gap-3 md:gap-6 max-w-[95%] md:max-w-[90%]",
+                  "group flex gap-3 md:gap-6 max-w-[95%] md:max-w-[90%] message-enter",
                   message.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
                 )}
               >
@@ -235,16 +235,13 @@ export default function ChatPage() {
             ))
           )}
           {isLoading && !getMessageText(messages[messages.length - 1]) && (
-            <div className="flex gap-3 md:gap-6 mr-auto">
+            <div className="flex gap-3 md:gap-6 mr-auto message-enter">
               <div className="w-10 h-10 rounded-xl flex shrink-0 items-center justify-center bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10">
-                <Loader2 className="w-5 h-5 text-cyan-500 dark:text-cyan-400 animate-spin" />
+                <Bot className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
               </div>
-              <div className="px-4 py-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-tl-none">
-                <span className="flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-black/20 dark:bg-white/30 animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-black/20 dark:bg-white/30 animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-black/20 dark:bg-white/30 animate-bounce" />
-                </span>
+              <div className="flex-1 flex flex-col gap-3 py-2">
+                <div className="gemini-loading-bar" />
+                <div className="gemini-loading-bar opacity-40 w-[60%]" />
               </div>
             </div>
           )}
