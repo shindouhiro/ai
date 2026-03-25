@@ -3,6 +3,9 @@
 @plugin "@tailwindcss/typography";
 @import "streamdown/styles.css";
 
+/* Tailwind v4: 强制使用 .dark 类触发 dark: 变体，取代默认的 media 查询 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -13,7 +16,7 @@
   --foreground: #0a0a0a;
 }
 
-[class~="dark"] {
+.dark {
   --background: #0a0a0a;
   --foreground: #ffffff;
 }

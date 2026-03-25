@@ -4,9 +4,9 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, convertFileListToFileUIParts } from 'ai';
 import { Streamdown } from 'streamdown';
 import "streamdown/styles.css";
-import { Send, User, Bot, Loader2, Paperclip, X, Image as ImageIcon, Sun, Moon } from 'lucide-react';
+import { Send, User, Bot, Loader2, Paperclip, X, Image as ImageIcon, Sun, Moon, ArrowDown } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -22,7 +22,7 @@ function cn(...inputs: ClassValue[]) {
  * 展示了 Vercel AI SDK 的封装使用以及 Streamdown 渲染器的集成
  */
 export default function ChatPage() {
-  const { theme, setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   // 防止水合不匹配
@@ -88,13 +88,31 @@ export default function ChatPage() {
   const isLoading = status === 'submitted' || status === 'streaming';
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
+  // 检查是否在底部
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    // 允许 100 像素的误差，提高容错性
+    const atBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setIsAtBottom(atBottom);
+  }, []);
 
   // 消息自动滚动到底部
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && isAtBottom && (status === 'streaming' || status === 'submitted')) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isAtBottom, status]);
+
+  // 当进入加载状态且当前已经在底部时，锁定到底部
+  useEffect(() => {
+    if (status === 'submitted' && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      setIsAtBottom(true);
+    }
+  }, [status]);
 
   return (
     <main suppressHydrationWarning className="relative min-h-screen flex flex-col items-center justify-center p-0 md:p-4 bg-white dark:bg-[#0a0a0a] text-black dark:text-white overflow-hidden transition-colors duration-300">
@@ -121,12 +139,12 @@ export default function ChatPage() {
 
           {/* 皮肤切换按钮 */}
           <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
             className="p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all group"
             title="切换主题"
           >
             {mounted ? (
-              theme === 'dark' ? (
+              resolvedTheme === 'dark' ? (
                 <Sun className="w-5 h-5 text-amber-400 group-hover:rotate-45 transition-transform" />
               ) : (
                 <Moon className="w-5 h-5 text-indigo-600 group-hover:-rotate-12 transition-transform" />
@@ -140,8 +158,9 @@ export default function ChatPage() {
         {/* 聊天消息区域 */}
         <div
           ref={scrollRef}
+          onScroll={handleScroll}
           suppressHydrationWarning
-          className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10 space-y-6 md:space-y-10 scrollbar-thin scrollbar-thumb-black/10 dark:scrollbar-thumb-white/10 scrollbar-track-transparent"
+          className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10 space-y-6 md:space-y-10 scrollbar-thin scrollbar-thumb-black/10 dark:scrollbar-thumb-white/10 scrollbar-track-transparent relative"
         >
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center opacity-20 dark:opacity-30 select-none">
@@ -226,6 +245,25 @@ export default function ChatPage() {
                 </span>
               </div>
             </div>
+          )}
+          
+          {/* 回到底部按钮 (当用户手动向上滚动且有新消息时显示) */}
+          {!isAtBottom && messages.length > 0 && (
+            <button
+              onClick={() => {
+                if (scrollRef.current) {
+                  scrollRef.current.scrollTo({
+                    top: scrollRef.current.scrollHeight,
+                    behavior: 'smooth'
+                  });
+                  setIsAtBottom(true);
+                }
+              }}
+              className="sticky bottom-4 left-1/2 -translate-x-1/2 p-2 rounded-full bg-indigo-600 text-white shadow-xl hover:bg-indigo-500 transition-all z-20 flex items-center gap-2 text-xs font-medium px-4 animate-in fade-in slide-in-from-bottom-2"
+            >
+              <ArrowDown className="w-4 h-4" />
+              回到最新消息
+            </button>
           )}
         </div>
 
