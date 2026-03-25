@@ -5,7 +5,7 @@ import { DefaultChatTransport, convertFileListToFileUIParts } from 'ai';
 import { Streamdown } from 'streamdown';
 import "streamdown/styles.css";
 import { Send, User, Bot, Loader2, Paperclip, X, Image as ImageIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -21,8 +21,9 @@ function cn(...inputs: ClassValue[]) {
  * 展示了 Vercel AI SDK 的封装使用以及 Streamdown 渲染器的集成
  */
 export default function ChatPage() {
+  const transport = useMemo(() => new DefaultChatTransport({ api: '/api/chat' }), []);
   const { messages, status, sendMessage, error } = useChat({
-    transport: new DefaultChatTransport({ api: '/api/chat' }),
+    transport,
   });
 
   const getMessageText = (message: any) => {
@@ -65,12 +66,12 @@ export default function ChatPage() {
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() && files.length === 0) return;
-    
-    sendMessage({ 
+
+    sendMessage({
       text: input,
       files: files
     });
-    
+
     setInput('');
     setFiles([]);
   };
@@ -87,24 +88,22 @@ export default function ChatPage() {
   }, [messages]);
 
   return (
-    <main className="relative min-h-screen flex flex-col items-center justify-center p-0 md:p-4 bg-[#0a0a0a] text-white overflow-hidden">
+    <main suppressHydrationWarning className="relative min-h-screen flex flex-col items-center justify-center p-0 md:p-4 bg-[#0a0a0a] text-white overflow-hidden">
       {/* 炫酷背景渐变 */}
       <div className="absolute top-0 left-0 w-full h-full -z-10 bg-[radial-gradient(circle_at_20%_30%,rgba(124,58,237,0.15),transparent),radial-gradient(circle_at_80%_70%,rgba(6,182,212,0.15),transparent)]" />
 
       {/* 玻璃拟态聊天容器 */}
-      <div className="w-full max-w-4xl h-screen md:h-[85vh] flex flex-col bg-white/[0.03] backdrop-blur-xl border-x-0 border-y-0 md:border md:border-white/[0.08] shadow-2xl rounded-none md:rounded-3xl overflow-hidden">
+      <div suppressHydrationWarning className="w-full max-w-4xl h-screen md:h-[85vh] flex flex-col bg-white/[0.03] backdrop-blur-xl border-x-0 border-y-0 md:border md:border-white/[0.08] shadow-2xl rounded-none md:rounded-3xl overflow-hidden">
 
         {/* 页眉 */}
-        <header className="px-4 py-4 md:px-8 md:py-6 border-b border-white/[0.08] flex items-center justify-between">
+        <header suppressHydrationWarning className="px-4 py-4 md:px-8 md:py-6 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-violet-900/40">
               <Bot className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold tracking-tight">智能对话助手</h1>
               <p className="text-xs text-white/40 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                基于 Vercel AI SDK & Streamdown
               </p>
             </div>
           </div>
@@ -113,6 +112,7 @@ export default function ChatPage() {
         {/* 聊天消息区域 */}
         <div
           ref={scrollRef}
+          suppressHydrationWarning
           className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-10 space-y-6 md:space-y-10 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
         >
           {messages.length === 0 ? (
@@ -157,12 +157,12 @@ export default function ChatPage() {
                     {message.role === 'user' ? (
                       <div className="flex flex-col gap-3">
                         {getMessageImages(message).map((part: any, i: number) => (
-                           <img 
-                             key={i} 
-                             src={part.url || part.image} 
-                             alt="Uploaded" 
-                             className="max-w-full rounded-lg border border-white/10"
-                           />
+                          <img
+                            key={i}
+                            src={part.url || part.image}
+                            alt="Uploaded"
+                            className="max-w-full rounded-lg border border-white/10"
+                          />
                         ))}
                         <div className="whitespace-pre-wrap break-words">{getMessageText(message)}</div>
                       </div>
@@ -202,7 +202,7 @@ export default function ChatPage() {
         </div>
 
         {/* 输入框区域 */}
-        <footer className="p-4 md:p-8 border-t border-white/[0.08] bg-black/20">
+        <footer suppressHydrationWarning className="p-4 md:p-8 border-t border-white/[0.08] bg-black/20">
           <form
             onSubmit={handleSubmit}
             className="group relative flex flex-col gap-4 transition-all duration-300"
@@ -212,10 +212,10 @@ export default function ChatPage() {
               <div className="flex flex-wrap gap-3 mb-2">
                 {files.map((file, index) => (
                   <div key={index} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/20 group/item">
-                    <img 
-                      src={file.url} 
-                      className="w-full h-full object-cover" 
-                      alt="preview" 
+                    <img
+                      src={file.url}
+                      className="w-full h-full object-cover"
+                      alt="preview"
                     />
                     <button
                       type="button"
