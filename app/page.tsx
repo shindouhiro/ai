@@ -3,12 +3,15 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, convertFileListToFileUIParts } from 'ai';
 import { Streamdown } from 'streamdown';
-import "streamdown/styles.css";
 import { Send, User, Bot, Loader2, Paperclip, X, Image as ImageIcon, Sun, Moon, ArrowDown } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { code, createCodePlugin } from "@streamdown/code";
+import { mermaid, createMermaidPlugin } from "@streamdown/mermaid";
+import { math } from "@streamdown/math";
+import { cjk } from "@streamdown/cjk";
 
 /**
  * Tailwind 类名合并助手
@@ -107,12 +110,27 @@ export default function ChatPage() {
   }, [messages, isAtBottom, status]);
 
   // 当进入加载状态且当前已经在底部时，锁定到底部
+  // 当进入加载状态且当前已经在底部时，锁定到底部
   useEffect(() => {
     if (status === 'submitted' && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       setIsAtBottom(true);
     }
   }, [status]);
+
+  // 当切换皮肤或状态时，更新 Streamdown 插件的主题配置
+  const streamdownPlugins = useMemo(() => {
+    return {
+      code, // code 插件可自动识别 shikiTheme 数组或单一字符串
+      mermaid: createMermaidPlugin({
+        config: {
+          theme: resolvedTheme === 'dark' ? 'dark' : 'default',
+        }
+      }),
+      math,
+      cjk,
+    };
+  }, [resolvedTheme]);
 
   return (
     <main suppressHydrationWarning className="relative min-h-screen flex flex-col items-center justify-center p-0 md:p-4 bg-white dark:bg-[#0a0a0a] text-black dark:text-white overflow-hidden transition-colors duration-300">
@@ -192,14 +210,14 @@ export default function ChatPage() {
 
                 {/* 气泡 */}
                 <div className={cn(
-                  "flex flex-col gap-2 flex-1 min-w-0", // min-w-0 是允许 flex 项目正常溢出隐藏的关键
+                  "flex flex-col gap-2 min-w-0 w-full", // 允许完全展开以容纳宽表格，min-w-0 防止 flex 挤压
                   message.role === 'user' ? "items-end" : "items-start"
                 )}>
                   <div className={cn(
-                    "px-4 py-3 rounded-2xl transition-all duration-300 w-fit max-w-full", // w-fit 控制宽度跟随内容，max-w-full 限制最大宽度
+                    "px-4 py-3 rounded-2xl transition-all duration-300 w-full", // w-full 允许拉伸
                     message.role === 'user'
-                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 rounded-tr-none"
-                      : "bg-black/5 dark:bg-white/5 text-black/90 dark:text-white/90 border border-black/5 dark:border-white/5 rounded-tl-none prose dark:prose-invert prose-p:leading-relaxed overflow-x-auto scrollbar-thin"
+                      ? "w-fit max-w-full bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 rounded-tr-none"
+                      : "bg-transparent text-black/90 dark:text-white/90 prose dark:prose-invert max-w-none prose-p:leading-relaxed overflow-x-auto scrollbar-thin"
                   )}>
                     {message.role === 'user' ? (
                       <div className="flex flex-col gap-3">
@@ -220,7 +238,10 @@ export default function ChatPage() {
                         isLoading && messages.indexOf(message) === messages.length - 1 && "is-streaming streamdown-content-animated"
                       )}>
                         <Streamdown
-                          isAnimating={isLoading && messages.indexOf(message) === messages.length - 1}
+                          shikiTheme={['github-light', 'github-dark']}
+                          className="docs-content"
+                          isAnimating={status === 'streaming'}
+                          plugins={streamdownPlugins}
                         >
                           {getMessageText(message)}
                         </Streamdown>
@@ -245,7 +266,7 @@ export default function ChatPage() {
               </div>
             </div>
           )}
-          
+
           {/* 回到底部按钮 (当用户手动向上滚动且有新消息时显示) */}
           {!isAtBottom && messages.length > 0 && (
             <button
