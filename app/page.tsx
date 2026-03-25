@@ -220,7 +220,6 @@ export default function ChatPage() {
                         isLoading && messages.indexOf(message) === messages.length - 1 && "is-streaming streamdown-content-animated"
                       )}>
                         <Streamdown
-                          animated
                           isAnimating={isLoading && messages.indexOf(message) === messages.length - 1}
                         >
                           {getMessageText(message)}

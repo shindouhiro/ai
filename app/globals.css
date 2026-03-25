@@ -86,12 +86,12 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* 渐入淡淡显示的动画效果 */
-@keyframes streamFadeIn {
+/* 丝滑淡入显示的动画效果 (解决打字机抖动) */
+@keyframes silkyFadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
-    filter: blur(2px);
+    transform: translateY(2px);
+    filter: blur(1px);
   }
   to {
     opacity: 1;
@@ -100,12 +100,29 @@ body {
   }
 }
 
-/* 针对 Streamdown 动态生成的内容应用动画 */
-.streamdown-content-animated * {
-  animation: streamFadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+/* 针对流式内容的平滑控制 */
+.streamdown-content-animated {
+  transition: all 0.5s ease-out;
 }
 
-/* 优化动画连贯性，确保不会重复触发（仅对最后增加的内容有效，通过 parent 容器控制） */
-.is-streaming .prose > *:last-child {
-  animation: streamFadeIn 0.6s ease-out forwards;
+/* 这里的关键点是：我们不对每一个微小的 span 进行动画，这样会很乱抖。
+   我们只对新生成的基础块级元素进行一次温和的淡入 */
+.is-streaming .prose p, 
+.is-streaming .prose li, 
+.is-streaming .prose pre,
+.is-streaming .prose blockquote {
+  animation: silkyFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+/* 如果 Streamdown 有光标标识，确保它不产生抖动 */
+.is-streaming .streamdown-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: currentColor;
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: none !important; /* 取消呼吸灯效果，减少抖动感 */
+  opacity: 0.5;
 }
