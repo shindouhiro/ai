@@ -1,6 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import { Streamdown } from 'streamdown';
 import "streamdown/styles.css";
 import { Send, User, Bot, Loader2 } from 'lucide-react';
@@ -21,7 +22,7 @@ function cn(...inputs: ClassValue[]) {
  */
 export default function ChatPage() {
   const { messages, status, sendMessage, error } = useChat({
-    api: '/api/chat',
+    transport: new DefaultChatTransport({ api: '/api/chat' }),
   });
 
   const getMessageText = (message: any) => {
