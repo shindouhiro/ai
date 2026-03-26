@@ -5,8 +5,8 @@ import { createOpenAI } from '@ai-sdk/openai';
  * 使用用户提供的 Base URL 和 API Key
  */
 export const customOpenAI = createOpenAI({
-  baseURL: process.env.OPENAI_BASE_URL || 'https://proxy.i2c.de5.net/v1',
-  apiKey: process.env.OPENAI_API_KEY || 'sk-egwLiCNg73LnhoBcA',
+  baseURL: process.env.OPENAI_BASE_URL || 'https://api.zyai.online/v1',
+  apiKey: process.env.OPENAI_API_KEY || 'sk-2fmJFAh9ZCJY7NIi2e573aF450Ec49AbA36c5c2d3bFaC73a',
 });
 
 // 默认模型配置
