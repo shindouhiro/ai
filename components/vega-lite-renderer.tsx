@@ -10,6 +10,8 @@ export const VegaLiteRenderer = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
+
+
   useEffect(() => {
     if (isIncomplete || !containerRef.current) {
       return;

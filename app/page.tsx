@@ -47,7 +47,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isOnline, setIsOnline] = useState(false);
   const [isDeepThinking, setIsDeepThinking] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gpt-4o');
+  const [selectedModel, setSelectedModel] = useState('gpt-5.4');
   const [files, setFiles] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
