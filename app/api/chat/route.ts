@@ -32,7 +32,8 @@ export async function POST(req: Request) {
       model: defaultModel,
       messages: modelMessages,
       system: '你是一个专业的 AI 助手。' + 
-              (isOnline ? ' 你当前拥有联网搜索能力。当用户询问天气、新闻、股票或任何需要实时信息的问题时，你**必须**优先调用 search 工具获取最新数据。' : '当前为离线模式。'),
+              (isOnline ? ' 你当前拥有联网搜索能力。当用户询问需要实时信息的问题时，你**必须**优先调用 search 工具。' + 
+              '在回答结束时，请务必列出你参考的资料数量，并以 Markdown 列表形式提供所有参考资料的跳转链接。' : '当前为离线模式。'),
       tools: isOnline ? {
         search: tool({
           description: '从互联网获取实时信息、新闻或背景资料。',
@@ -62,10 +63,17 @@ export async function POST(req: Request) {
               });
               
               const data = await response.json();
-              return data;
+              if (data.results && Array.isArray(data.results)) {
+                const resultsStr = data.results.map((res: any, index: number) => 
+                  `[来源 ${index + 1}]\n标题: ${res.title}\n链接: ${res.url}\n摘要: ${res.content}`
+                ).join('\n\n');
+                
+                return `已找到 ${data.results.length} 篇相关资料，请务必在回答中引用并列出链接：\n\n${resultsStr}`;
+              }
+              return JSON.stringify(data);
             } catch (err) {
               console.error('Search tool error:', err);
-              return { error: 'Search failed' };
+              return '搜索失败，请尝试其他关键词。';
             }
           },
         }),

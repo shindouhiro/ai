@@ -9,8 +9,10 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      # - OPENAI_API_KEY=${OPENAI_API_KEY}  # 如果您后续将 API Key 移出代码，可以使用这类变量
-    # 即使在代码中硬编码了，提供环境变量也是一种好的运维习惯
+      - OPENAI_BASE_URL=https://api.zyai.online/v1
+      - OPENAI_API_KEY=sk-2fmJFAh9ZCJY7NIi2e573aF450Ec49AbA36c5c2d3bFaC73a
+      - TAVILY_API_KEY=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
+    # 应用运行所需的外部接口配置
     logging:
       driver: "json-file"
       options:
