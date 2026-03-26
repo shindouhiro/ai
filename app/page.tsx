@@ -3,9 +3,9 @@
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, convertFileListToFileUIParts } from 'ai';
 import { Streamdown } from 'streamdown';
-import { Send, User, Bot, Paperclip, X, Sun, Moon, ArrowDown } from 'lucide-react';
+import { Send, User, Bot, Paperclip, X, Sun, Moon, ArrowDown, Wand2, Mic, Square } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '../lib/utils';
 import { useChatScroll } from '../hooks/use-chat-scroll';
 import { useStreamdownPlugins } from '../hooks/use-streamdown-plugins';
@@ -24,7 +24,7 @@ export default function ChatPage() {
   }, []);
 
   const transport = useMemo(() => new DefaultChatTransport({ api: '/api/chat' }), []);
-  const { messages, status, sendMessage, error } = useChat({
+  const { messages, status, sendMessage, error, stop } = useChat({
     transport,
   });
 
@@ -45,10 +45,22 @@ export default function ChatPage() {
   };
 
   const [input, setInput] = useState('');
-  const [files, setFiles] = useState<any[]>([]); // Using any[] here to avoid import issues or complex types if needed, or follow FileUIPart
+  const [isOnline, setIsOnline] = useState(false);
+  const [isDeepThinking, setIsDeepThinking] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gpt-4o');
+  const [files, setFiles] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 自动调整 Textarea 高度
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  }, [input]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
   };
 
@@ -71,11 +83,25 @@ export default function ChatPage() {
 
     sendMessage({
       text: input,
-      files: files
-    });
+      files: files,
+      // 可以在此处扩展 metadata，如联网/深度思考状态
+      metadata: {
+        isOnline,
+        isDeepThinking,
+        model: selectedModel
+      }
+    } as any);
 
     setInput('');
     setFiles([]);
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
   };
 
   const isLoading = status === 'submitted' || status === 'streaming';
@@ -231,16 +257,74 @@ export default function ChatPage() {
         </div>
 
         {/* 输入框区域 */}
-        <footer suppressHydrationWarning className="p-4 md:p-8 border-t border-black/5 dark:border-white/[0.08] bg-black/5 dark:bg-black/20">
+        <footer suppressHydrationWarning className="p-4 md:p-6 pb-6 md:pb-10 border-t border-black/5 dark:border-white/[0.08] bg-black/5 dark:bg-black/20">
           <form
             onSubmit={handleSubmit}
-            className="group relative flex flex-col gap-4 transition-all duration-300"
+            className="group relative flex flex-col gap-3 transition-all duration-300 max-w-4xl mx-auto"
           >
+            {/* 功能开关与模型选择 */}
+            <div className="flex items-center justify-between px-1 mb-1">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsOnline(!isOnline)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
+                    isOnline
+                      ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-600 dark:text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)]"
+                      : "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10"
+                  )}
+                >
+                  <div className={cn("w-1.5 h-1.5 rounded-full", isOnline ? "bg-emerald-500 animate-pulse" : "bg-current opacity-50")} />
+                  联网搜索
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDeepThinking(!isDeepThinking)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
+                    isDeepThinking
+                      ? "bg-violet-500/10 border-violet-500/50 text-violet-600 dark:text-violet-400 shadow-[0_0_15px_-3px_rgba(139,92,246,0.3)]"
+                      : "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10"
+                  )}
+                >
+                  <div className={cn("w-1.5 h-1.5 rounded-full", isDeepThinking ? "bg-violet-500 animate-pulse" : "bg-current opacity-50")} />
+                  深度思考
+                </button>
+              </div>
+
+              {/* <div className="flex items-center gap-2">
+                <select 
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="bg-black/5 dark:bg-white/10 border-none rounded-full px-3 py-1.5 text-xs font-medium text-black/60 dark:text-white/60 focus:ring-0 outline-none cursor-pointer hover:bg-black/10 dark:hover:bg-white/20 transition-all appearance-none pr-6 relative"
+                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0\' stroke=\'currentColor\' stroke-width=\'2\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.8rem' }}
+                >
+                  <option value="gpt-4o">GPT-4o</option>
+                  <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+                  <option value="deepseek-r1">DeepSeek R1</option>
+                  <option value="gemini-2-flash">Gemini 2.0 Flash</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInput('');
+                    setFiles([]);
+                    // 这里可以添加清除历史的逻辑
+                  }}
+                  className="p-1.5 rounded-full text-black/20 dark:text-white/20 hover:text-rose-500 transition-colors"
+                  title="清除当前输入"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div> */}
+            </div>
+
             {/* 图片预览 */}
             {files.length > 0 && (
-              <div className="flex flex-wrap gap-3 mb-2">
+              <div className="flex flex-wrap gap-2 mb-2 px-1">
                 {files.map((file, index) => (
-                  <div key={index} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/20 group/item">
+                  <div key={index} className="relative w-16 h-16 rounded-xl overflow-hidden border border-black/10 dark:border-white/20 group/item shadow-sm">
                     <img
                       src={file.url}
                       className="w-full h-full object-cover"
@@ -249,16 +333,16 @@ export default function ChatPage() {
                     <button
                       type="button"
                       onClick={() => removeFile(index)}
-                      className="absolute top-1 right-1 p-1 bg-black/60 rounded-full hover:bg-black/80 transition-colors"
+                      className="absolute top-1 right-1 p-1 bg-black/60 rounded-full hover:bg-black/80 transition-colors backdrop-blur-sm"
                     >
-                      <X className="w-3 h-3 text-white" />
+                      <X className="w-2.5 h-2.5 text-white" />
                     </button>
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="relative flex items-center">
+            <div className="relative flex items-end bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl shadow-xl shadow-black/[0.02] dark:shadow-black/20 p-2 focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -271,28 +355,72 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading}
-                className="absolute left-2 p-3 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all"
+                className="p-3 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-all mb-1"
+                title="上传文件"
               >
                 <Paperclip className="w-5 h-5" />
               </button>
-              <input
+
+              <button
+                type="button"
+                className="p-3 text-black/40 dark:text-white/40 hover:text-indigo-500 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-all mb-1"
+                title="提示词增强"
+                onClick={() => {
+                  if (input.trim()) {
+                    setInput(prev => `请优化以下需求，使其更专业、更清晰：\n\n${prev}`);
+                  }
+                }}
+              >
+                <Wand2 className="w-5 h-5" />
+              </button>
+
+              <textarea
+                ref={textareaRef}
                 value={input}
                 onChange={handleInputChange}
-                placeholder={files.length > 0 ? "描述一下这些图片..." : "发送消息..."}
-                className="w-full h-14 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl pl-14 pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20 text-black dark:text-white text-sm md:text-base"
+                onKeyDown={handleKeyDown}
+                placeholder={files.length > 0 ? "描述一下这些图片..." : "描述你的需求或问题..."}
+                rows={1}
+                className="flex-1 max-h-[200px] bg-transparent border-none focus:ring-0 outline-none p-3 text-black dark:text-white text-base resize-none placeholder:text-black/20 dark:placeholder:text-white/20"
                 disabled={isLoading}
               />
+
               <button
-                type="submit"
-                disabled={isLoading || (!input.trim() && files.length === 0)}
-                className="absolute right-2 p-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-black/5 dark:disabled:bg-white/5 disabled:text-black/20 dark:disabled:text-white/20 text-white rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30"
+                type="button"
+                className="p-3 text-black/40 dark:text-white/40 hover:text-indigo-500 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-all mb-1"
+                title="语音输入"
               >
-                <Send className="w-5 h-5" />
+                <Mic className="w-5 h-5" />
               </button>
+
+              {isLoading ? (
+                <button
+                  type="button"
+                  onClick={() => stop()}
+                  className="p-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition-all shadow-lg active:scale-95 mb-1 ml-1"
+                  title="停止生成"
+                >
+                  <Square className="w-5 h-5 fill-current" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim() && files.length === 0}
+                  className={cn(
+                    "p-3 rounded-xl transition-all shadow-lg mb-1 ml-1",
+                    (!input.trim() && files.length === 0)
+                      ? "bg-black/5 dark:bg-white/5 text-black/20 dark:text-white/20 shadow-none cursor-not-allowed"
+                      : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20 active:scale-95"
+                  )}
+                  title="发送消息"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </form>
-          <p className="mt-4 text-center text-[10px] text-black/20 dark:text-white/20 tracking-wider">
-            支持图片上传与实时分析 • 基于 Vercel AI SDK 统一接口
+          <p className="mt-4 text-center text-[10px] text-black/30 dark:text-white/30 font-medium tracking-widest uppercase opacity-50">
+            Intelligent AI Assistant • Multimodal Support
           </p>
         </footer>
       </div>

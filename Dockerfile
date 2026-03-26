@@ -1,31 +1,39 @@
-# Build stage
-FROM node:20-alpine AS builder
+# 阶段 1: 依赖安装
+FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-RUN npm install -g pnpm
-
-# Install dependencies
-COPY pnpm-lock.yaml ./
-COPY package.json ./
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-# Build the project
+# 阶段 2: 构建应用
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# 避免在构建时进行遥测
+ENV NEXT_TELEMETRY_DISABLED 1
 RUN pnpm run build
 
-# Runtime stage
-FROM node:20-alpine AS runner
+# 阶段 3: 生产环境运行
+FROM base AS runner
 WORKDIR /app
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
 
-ENV NODE_ENV=production
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# Copy necessary files from builder
-# Next.js standalone output includes node_modules
+# 自动拷贝构建产物
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+USER nextjs
 EXPOSE 3000
-
-ENV PORT=3000
+ENV PORT 3000
 CMD ["node", "server.js"]
