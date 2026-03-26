@@ -7,6 +7,18 @@ import { createOpenAI } from '@ai-sdk/openai';
 export const customOpenAI = createOpenAI({
   baseURL: process.env.OPENAI_BASE_URL || 'https://api.zyai.online/v1',
   apiKey: process.env.OPENAI_API_KEY || 'sk-2fmJFAh9ZCJY7NIi2e573aF450Ec49AbA36c5c2d3bFaC73a',
+  fetch: async (url, options) => {
+    // 调试日志：查看发送到代理的完整请求
+    if (options?.body) {
+      const body = JSON.parse(options.body as string);
+      console.log('--- API Request Payload ---');
+      console.log('URL:', url);
+      console.log('Model:', body.model);
+      console.log('Tools provided:', !!body.tools, body.tools?.length || 0);
+      console.log('---------------------------');
+    }
+    return fetch(url, options);
+  }
 });
 
 // 默认模型配置
