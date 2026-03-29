@@ -1,9 +1,10 @@
 'use client';
 
+import { useSession, signOut } from 'next-auth/react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, convertFileListToFileUIParts } from 'ai';
 import { Streamdown } from 'streamdown';
-import { Send, User, Bot, Paperclip, X, Sun, Moon, ArrowDown, Wand2, Mic, Square } from 'lucide-react';
+import { Send, User, Bot, Paperclip, X, Sun, Moon, ArrowDown, Wand2, Mic, Square, LogOut } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '../lib/utils';
@@ -15,6 +16,7 @@ import { useStreamdownPlugins } from '../hooks/use-streamdown-plugins';
  * 展示了 Vercel AI SDK 的封装使用以及 Streamdown 渲染器的集成
  */
 export default function ChatPage() {
+  const { data: session } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -127,27 +129,38 @@ export default function ChatPage() {
               <h1 className="text-xl font-semibold tracking-tight text-black/90 dark:text-white">智能对话助手</h1>
               <p className="text-xs text-black/40 dark:text-white/40 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                基于 Vercel AI SDK & Streamdown
+                {session?.user?.name || '访客'} 基于 Vercel AI SDK
               </p>
             </div>
           </div>
 
-          {/* 皮肤切换按钮 */}
-          <button
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all group"
-            title="切换主题"
-          >
-            {mounted ? (
-              resolvedTheme === 'dark' ? (
-                <Sun className="w-5 h-5 text-amber-400 group-hover:rotate-45 transition-transform" />
+          <div className="flex items-center gap-3">
+            {/* 皮肤切换按钮 */}
+            <button
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              className="p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all group"
+              title="切换主题"
+            >
+              {mounted ? (
+                resolvedTheme === 'dark' ? (
+                  <Sun className="w-5 h-5 text-amber-400 group-hover:rotate-45 transition-transform" />
+                ) : (
+                  <Moon className="w-5 h-5 text-indigo-600 group-hover:-rotate-12 transition-transform" />
+                )
               ) : (
-                <Moon className="w-5 h-5 text-indigo-600 group-hover:-rotate-12 transition-transform" />
-              )
-            ) : (
-              <div className="w-5 h-5" />
-            )}
-          </button>
+                <div className="w-5 h-5" />
+              )}
+            </button>
+
+            {/* 退出登录按钮 */}
+            <button
+              onClick={() => signOut()}
+              className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 hover:bg-rose-500/20 transition-all"
+              title="退出登录"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </header>
 
         {/* 聊天消息区域 */}
@@ -187,11 +200,11 @@ export default function ChatPage() {
 
                 {/* 气泡 */}
                 <div className={cn(
-                  "flex flex-col gap-2 min-w-0 w-full", // 允许完全展开以容纳宽表格，min-w-0 防止 flex 挤压
+                  "flex flex-col gap-2 min-w-0 w-full",
                   message.role === 'user' ? "items-end" : "items-start"
                 )}>
                   <div className={cn(
-                    "px-4 py-3 rounded-2xl transition-all duration-300 w-full", // w-full 允许拉伸
+                    "px-4 py-3 rounded-2xl transition-all duration-300 w-full",
                     message.role === 'user'
                       ? "w-fit max-w-full bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 rounded-tr-none"
                       : "bg-transparent text-black/90 dark:text-white/90 prose dark:prose-invert max-w-none prose-p:leading-relaxed overflow-x-auto scrollbar-thin"
@@ -292,32 +305,6 @@ export default function ChatPage() {
                   深度思考
                 </button>
               </div>
-
-              {/* <div className="flex items-center gap-2">
-                <select 
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="bg-black/5 dark:bg-white/10 border-none rounded-full px-3 py-1.5 text-xs font-medium text-black/60 dark:text-white/60 focus:ring-0 outline-none cursor-pointer hover:bg-black/10 dark:hover:bg-white/20 transition-all appearance-none pr-6 relative"
-                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0\' stroke=\'currentColor\' stroke-width=\'2\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.8rem' }}
-                >
-                  <option value="gpt-4o">GPT-4o</option>
-                  <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
-                  <option value="deepseek-r1">DeepSeek R1</option>
-                  <option value="gemini-2-flash">Gemini 2.0 Flash</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInput('');
-                    setFiles([]);
-                    // 这里可以添加清除历史的逻辑
-                  }}
-                  className="p-1.5 rounded-full text-black/20 dark:text-white/20 hover:text-rose-500 transition-colors"
-                  title="清除当前输入"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div> */}
             </div>
 
             {/* 图片预览 */}
