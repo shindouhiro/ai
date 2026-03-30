@@ -11,7 +11,8 @@ export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+       console.log('[API Sessions] ❌ No user session found during GET');
+       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const sessions = await db.query.chats.findMany({

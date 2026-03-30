@@ -82,7 +82,9 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
   const handleChatSelect = async (selectedId: string) => {
     setChatId(selectedId);
     try {
-      const res = await fetch(`/api/history/messages/${selectedId}`);
+      const res = await fetch(`/api/history/messages/${selectedId}`, {
+        credentials: 'same-origin'
+      });
       if (res.ok) {
         const history = await res.json();
         setMessages(history.map(standardizeMessage));
@@ -133,10 +135,11 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
     setIsStreaming(true);
 
     try {
-      // 3. 直接 Fetch 原始流
+      // 3. 直接 Fetch 原始流 (加固：显式带上凭证以通过 proxy 校验)
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({
           messages: [...messages, userMessage],
           chatId,
