@@ -1,19 +1,21 @@
 import { streamText, tool, stepCountIs, convertToModelMessages } from 'ai';
 import { customOpenAI, defaultModel } from '@/lib/ai-provider';
 import { z } from 'zod';
+import { auth } from '@/auth';
+import { db } from '@/lib/db';
+import { chatMessages, chats } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 /**
  * 核心聊天 API 端点
- * 支持工具调用，可根据需要扩展（如联网搜索）
+ * 已集成历史记录自动保存
  */
 export async function POST(req: Request) {
   try {
+    const session = await auth();
     const body = await req.json();
-    console.log('--- Incoming Request Body ---');
-    console.log(JSON.stringify(body, null, 2));
-    console.log('-----------------------------');
+    const { messages, metadata: rootMetadata, chatId: providedChatId } = body;
 
-    const { messages, metadata: rootMetadata } = body;
     // 关键修复：从最后一条消息或根目录提取 metadata
     const lastMessage = messages?.[messages.length - 1];
     const metadata = lastMessage?.metadata || rootMetadata;
@@ -24,11 +26,47 @@ export async function POST(req: Request) {
     // AI SDK 6.0 中 convertToModelMessages 是异步的
     const modelMessages = await convertToModelMessages(messages);
 
-    // 调试日志：检查环境变量和 metadata
-    console.log('Online Mode:', isOnline, 'API Key Length:', process.env.OPENAI_API_KEY?.length);
+    let currentChatId = providedChatId;
+
+    // 如果未提供 chatId 且用户已登录，则自动创建新会话 (以第一条用户消息为标题)
+    if (!currentChatId && session?.user?.id && messages.length > 0) {
+      const firstUserMessage = messages.find((m: any) => m.role === 'user');
+      let title = '新对话';
+      
+      if (typeof firstUserMessage?.content === 'string') {
+        title = firstUserMessage.content.substring(0, 30);
+      } else if (Array.isArray(firstUserMessage?.content)) {
+        const textPart = firstUserMessage.content.find((p: any) => p.type === 'text');
+        title = textPart?.text?.substring(0, 30) || '多模态对话';
+      }
+
+      const [newChat] = await db.insert(chats).values({
+        userId: session.user.id,
+        title: title || '新对话',
+      }).returning();
+      
+      currentChatId = newChat.id;
+    }
+
+    // 保存当前用户的最后一条消息
+    if (currentChatId && lastMessage && lastMessage.role === 'user') {
+      const dbContent = typeof lastMessage.content === 'string' 
+        ? lastMessage.content 
+        : (lastMessage.content ? JSON.stringify(lastMessage.content) : "");
+
+      await db.insert(chatMessages).values({
+        chatId: currentChatId,
+        role: 'user',
+        content: dbContent || "",
+      });
+
+      // 更新会话最后活跃时间
+      await db.update(chats)
+        .set({ updatedAt: new Date() })
+        .where(eq(chats.id, currentChatId));
+    }
 
     const result = streamText({
-      // 固定使用默认模型（gpt-5.4 + .chat()），避免前端选择不支持的模型名
       model: defaultModel,
       messages: modelMessages,
       system: '你是一个专业的 AI 助手。' + 
@@ -37,17 +75,12 @@ export async function POST(req: Request) {
       tools: isOnline ? {
         search: tool({
           description: '从互联网获取实时信息、新闻或背景资料。',
-          // AI SDK 6.0 使用 inputSchema 代替 parameters
           inputSchema: z.object({
             query: z.string().describe('搜索关键词'),
           }),
           execute: async ({ query }: { query: string }) => {
-            console.log('Searching for:', query);
             const apiKey = process.env.TAVILY_API_KEY;
-            
-            if (!apiKey) {
-              return { error: 'TAVILY_API_KEY is not configured' };
-            }
+            if (!apiKey) return { error: 'TAVILY_API_KEY is not configured' };
 
             try {
               const response = await fetch('https://api.tavily.com/search', {
@@ -64,25 +97,34 @@ export async function POST(req: Request) {
               
               const data = await response.json();
               if (data.results && Array.isArray(data.results)) {
-                const resultsStr = data.results.map((res: any, index: number) => 
+                return data.results.map((res: any, index: number) => 
                   `[来源 ${index + 1}]\n标题: ${res.title}\n链接: ${res.url}\n摘要: ${res.content}`
                 ).join('\n\n');
-                
-                return `已找到 ${data.results.length} 篇相关资料，请务必在回答中引用并列出链接：\n\n${resultsStr}`;
               }
               return JSON.stringify(data);
             } catch (err) {
-              console.error('Search tool error:', err);
               return '搜索失败，请尝试其他关键词。';
             }
           },
         }),
       } : {},
-      // AI SDK 6.0 使用 stopWhen 代替 maxSteps
       stopWhen: isOnline ? stepCountIs(5) : stepCountIs(1),
+      onFinish: async ({ text }) => {
+        // AI 回答完成后，保存到数据库
+        if (currentChatId) {
+          await db.insert(chatMessages).values({
+            chatId: currentChatId,
+            role: 'assistant',
+            content: text || "",
+          });
+        }
+      }
     });
 
-    return result.toUIMessageStreamResponse();
+    // 将 chatId 返回给前端以便后续同步
+    return result.toUIMessageStreamResponse({
+      headers: currentChatId ? { 'X-Chat-Id': currentChatId } : undefined,
+    });
   } catch (error) {
     console.error('Chat API Error:', error);
     return new Response(JSON.stringify({ error: (error as Error).message }), {

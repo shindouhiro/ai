@@ -4,8 +4,12 @@ import {
   text,
   primaryKey,
 } from "drizzle-orm/sqlite-core";
+import { relations } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
 
+/**
+ * 用户表
+ */
 export const users = sqliteTable("user", {
   id: text("id")
     .primaryKey()
@@ -14,10 +18,12 @@ export const users = sqliteTable("user", {
   email: text("email").unique(),
   emailVerified: integer("email_verified", { mode: "timestamp_ms" }),
   image: text("image"),
-  // Added for credentials login (optional but recommended for a local demo)
   password: text("password"),
 });
 
+/**
+ * 账号表 (第三方登录)
+ */
 export const accounts = sqliteTable(
   "account",
   {
@@ -42,6 +48,9 @@ export const accounts = sqliteTable(
   })
 );
 
+/**
+ * 会话表
+ */
 export const sessions = sqliteTable("session", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
@@ -50,6 +59,9 @@ export const sessions = sqliteTable("session", {
   expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
 });
 
+/**
+ * 验证令牌
+ */
 export const verificationTokens = sqliteTable(
   "verificationToken",
   {
@@ -61,3 +73,59 @@ export const verificationTokens = sqliteTable(
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
   })
 );
+
+/**
+ * 聊天会话表
+ */
+export const chats = sqliteTable("chat", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+/**
+ * 消息记录表
+ */
+export const chatMessages = sqliteTable("chat_message", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  chatId: text("chatId")
+    .notNull()
+    .references(() => chats.id, { onDelete: "cascade" }),
+  role: text("role", { enum: ["user", "assistant", "system"] }).notNull(),
+  content: text("content").notNull(), // 存储文本内容或 JSON 序列化的多模态内容
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+// 定义关系
+export const usersRelations = relations(users, ({ many }) => ({
+  chats: many(chats),
+}));
+
+export const chatsRelations = relations(chats, ({ one, many }) => ({
+  user: one(users, {
+    fields: [chats.userId],
+    references: [users.id],
+  }),
+  messages: many(chatMessages),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  chat: one(chats, {
+    fields: [chatMessages.chatId],
+    references: [chats.id],
+  }),
+}));
