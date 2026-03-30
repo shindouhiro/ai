@@ -2,7 +2,6 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
 import { Streamdown } from 'streamdown';
 import { User, Bot, Paperclip, X, Sun, Moon, ArrowDown, Wand2, Square, LogOut, Command, ChevronDown, Image as ImageIcon, Plus } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -36,10 +35,10 @@ function standardizeMessage(msg: any): any {
       } else if (parsed.text) {
         content = parsed.text;
       }
-    } catch (e) {}
+    } catch (e) { }
   } else if (Array.isArray(content)) {
-     attachments = content.filter((p: any) => p.type === 'image' || p.image || p.url).map((p: any) => ({ url: p.url || p.image || p.data }));
-     content = content.filter((p: any) => p.type === 'text' || p.text).map((p: any) => p.text || "").join('');
+    attachments = content.filter((p: any) => p.type === 'image' || p.image || p.url).map((p: any) => ({ url: p.url || p.image || p.data }));
+    content = content.filter((p: any) => p.type === 'text' || p.text).map((p: any) => p.text || "").join('');
   }
 
   return {
@@ -56,8 +55,7 @@ interface ChatClientProps {
 }
 
 export default function ChatClient({ initialSession }: ChatClientProps) {
-  // 虽然我们有了 initialSession，但仍保留 useSession 订阅以处理登出等状态
-  const { data: sessionData, status: authStatus } = useSession();
+  const { data: sessionData } = useSession();
   const session = sessionData || initialSession;
 
   const { setTheme, resolvedTheme } = useTheme();
@@ -65,26 +63,21 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [chatId, setChatId] = useState<string | undefined>(undefined);
 
+  // 状态变量汇总
+  const [localInput, setLocalInput] = useState('');
+  const [isOnline, setIsOnline] = useState(false);
+  const [files, setFiles] = useState<any[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
   }, []);
 
-  const transport = useMemo(() => new DefaultChatTransport({ api: '/api/chat' }), []);
-  
-  const chatHelpers = useChat({
-    transport,
-    body: { chatId } as any,
-    onResponse: (response: any) => {
-      const headerChatId = response.headers.get('X-Chat-Id');
-      if (headerChatId && chatId !== headerChatId) {
-        setChatId(headerChatId);
-      }
-    }
+  // 仅使用 useChat 管理消息数组
+  const { messages, setMessages, stop } = useChat({
+     api: '/api/chat',
   });
-
-  const { messages, setMessages, status, stop } = chatHelpers;
-  const input = (chatHelpers as any).input || '';
 
   const handleChatSelect = async (selectedId: string) => {
     setChatId(selectedId);
@@ -106,34 +99,85 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
 
-  const [isOnline, setIsOnline] = useState(false);
-  const [files, setFiles] = useState<any[]>([]);
-
-  const onFormSubmitHandler = (e: React.FormEvent, explicitValue: string) => {
+  /**
+   * 终极方案：手动流式读取逻辑
+   */
+  const onFormSubmitHandler = async (e: React.FormEvent, explicitValue: string) => {
     e.preventDefault();
-    if (!explicitValue.trim() && files.length === 0) return;
-    
-    if ((chatHelpers as any).setInput) {
-      (chatHelpers as any).setInput(explicitValue);
-    } else if ((chatHelpers as any).handleInputChange) {
-      (chatHelpers as any).handleInputChange({ target: { value: explicitValue } } as any);
-    }
+    const messageContent = explicitValue || localInput;
+    if (!messageContent.trim() && files.length === 0 && !isStreaming) return;
 
-    const submitFn = (chatHelpers as any).handleSubmit;
-    if (submitFn) {
-      setTimeout(() => {
-        submitFn(e, {
-          experimental_attachments: files.map(f => ({ url: f.url, name: f.name, contentType: 'image/jpeg' })),
-          body: { chatId, isOnline },
-          input: explicitValue
-        } as any);
-        setFiles([]);
-      }, 0);
+    // 1. 构造用户消息和占位 AI 消息
+    const userMsgId = `user-${Date.now()}`;
+    const aiMsgId = `ai-${Date.now()}`;
+    
+    const userMessage = {
+      id: userMsgId,
+      role: 'user',
+      content: messageContent,
+      experimental_attachments: files.map(f => ({ url: f.url, name: f.name, contentType: 'image/jpeg' })),
+      createdAt: new Date()
+    };
+
+    const initialAiMessage = {
+      id: aiMsgId,
+      role: 'assistant',
+      content: '',
+      createdAt: new Date()
+    };
+
+    // 2. 更新 UI 并开启流状态
+    setMessages(prev => [...prev, userMessage, initialAiMessage]);
+    setLocalInput('');
+    setFiles([]);
+    setIsStreaming(true);
+
+    try {
+      // 3. 直接 Fetch 原始流
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          chatId,
+          metadata: { isOnline }
+        })
+      });
+
+      if (!response.ok) throw new Error('API Response Error');
+
+      // 4. 解析 Header 中的新 ChatId
+      const newChatId = response.headers.get('X-Chat-Id');
+      if (newChatId && chatId !== newChatId) setChatId(newChatId);
+
+      // 5. 逐块读取并更新消息内容
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedContent = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          accumulatedContent += chunk;
+
+          // 实时更新 AI 消息的内容
+          setMessages(prev => 
+            prev.map(m => m.id === aiMsgId ? { ...m, content: accumulatedContent } : m)
+          );
+        }
+      }
+    } catch (err) {
+      console.error('[Manual Stream Error]', err);
+    } finally {
+      setIsStreaming(false);
     }
   };
 
-  const isLoading = status === 'submitted' || status === 'streaming';
-  const { scrollRef, isAtBottom, handleScroll, scrollToBottom } = useChatScroll(messages, status);
+  const isLoading = isStreaming;
+  const { scrollRef, isAtBottom, handleScroll, scrollToBottom } = useChatScroll(messages, isStreaming ? 'streaming' : 'ready');
   const streamdownPlugins = useStreamdownPlugins(resolvedTheme);
 
   return (
@@ -150,29 +194,27 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
         "flex-1 flex flex-col items-center relative transition-all duration-300 ease-in-out h-screen",
         isSidebarOpen && session ? "md:pl-[300px]" : "md:pl-[68px]"
       )}>
-        
         <header className="w-full h-16 shrink-0 px-6 flex items-center justify-between sticky top-0 bg-white/80 dark:bg-[#131314]/80 backdrop-blur-md z-30">
-          <div className="flex items-center gap-3">
-             <div className="md:hidden">
-               <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full"><Command className="w-5 h-5" /></button>
-             </div>
-             <div className="flex items-center gap-1.5 px-3 py-1 bg-black/5 dark:bg-white/5 rounded-full cursor-pointer hover:bg-black/10 transition-all">
-                <span className="text-[14px] font-medium tracking-tight">Gemini Advanced</span>
-                <ChevronDown className="w-4 h-4 opacity-40" />
-             </div>
-          </div>
+          <header className="flex items-center gap-3">
+            <div className="md:hidden">
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full"><Command className="w-5 h-5" /></button>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-black/5 dark:bg-white/5 rounded-full cursor-pointer hover:bg-black/10 transition-all">
+              <span className="text-[14px] font-medium tracking-tight">Gemini Advanced</span>
+              <ChevronDown className="w-4 h-4 opacity-40" />
+            </div>
+          </header>
 
           <div className="flex items-center gap-3">
-             <button
-               onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-               className="p-2.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all"
-               title={mounted ? "切换主题" : undefined}
-             >
-               {mounted && (resolvedTheme === 'dark' ? <Sun className="w-5 h-5 text-[#f9ab00]" /> : <Moon className="w-5 h-5 text-[#4285f4]" />)}
-             </button>
-             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#a142f4] to-[#4285f4] flex items-center justify-center text-white text-[12px] font-bold shadow-md cursor-pointer hover:scale-110 transition-all ring-2 ring-white dark:ring-[#131314] ring-offset-2 ring-offset-transparent outline-none">
-                {mounted ? (session?.user?.name?.[0]?.toUpperCase() || 'U') : null}
-             </div>
+            <button
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              className="p-2.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-all"
+            >
+              {mounted && (resolvedTheme === 'dark' ? <Sun className="w-5 h-5 text-[#f9ab00]" /> : <Moon className="w-5 h-5 text-[#4285f4]" />)}
+            </button>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#a142f4] to-[#4285f4] flex items-center justify-center text-white text-[12px] font-bold shadow-md cursor-pointer hover:scale-110 transition-all ring-2 ring-white dark:ring-[#131314] ring-offset-2 ring-offset-transparent outline-none">
+              {mounted ? (session?.user?.name?.[0]?.toUpperCase() || 'U') : null}
+            </div>
           </div>
         </header>
 
@@ -183,27 +225,25 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
         >
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-start justify-center pt-20">
-               <h2 className="text-[56px] font-medium leading-none mb-10 bg-gradient-to-r from-[#4285f4] via-[#9b72cb] to-[#d96570] text-transparent bg-clip-text animate-gradient">
-                  你好，{session?.user?.name?.split(' ')[0] || '朋友'}
-               </h2>
-               <p className="text-[28px] font-medium text-black/40 dark:text-white/40 mb-12">我今天可以如何帮您？</p>
-               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full">
-                  {[
-                    "帮忙制定一个学习计划", "解释一下量力力学", "帮我写一个工作周报模板", "提供一些旅行建议"
-                  ].map((text, i) => (
-                    <div key={i} onClick={() => (chatHelpers as any).setInput?.(text)} className="p-5 bg-[#f0f4f9] dark:bg-[#1e1f20] hover:bg-[#dde3ea] dark:hover:bg-[#282a2c] rounded-[1.5rem] cursor-pointer transition-all flex flex-col justify-between h-[180px]">
-                       <p className="text-[14px] font-medium leading-relaxed">{text}</p>
-                       <div className="w-10 h-10 rounded-full bg-white dark:bg-[#131314] flex items-center justify-center self-end shadow-sm">
-                          <Plus className="w-5 h-5 text-black/60 dark:text-white/60" />
-                       </div>
+              <h2 className="text-[56px] font-medium leading-none mb-10 bg-gradient-to-r from-[#4285f4] via-[#9b72cb] to-[#d96570] text-transparent bg-clip-text animate-gradient">
+                你好，{session?.user?.name?.split(' ')[0] || '朋友'}
+              </h2>
+              <p className="text-[28px] font-medium text-black/40 dark:text-white/40 mb-12">我今天可以如何帮您？</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full">
+                {["帮忙制定一个学习计划", "解释一下量子力学", "帮我写一个工作周报模板", "提供一些旅行建议"].map((text, i) => (
+                  <div key={i} onClick={() => setLocalInput(text)} className="p-5 bg-[#f0f4f9] dark:bg-[#1e1f20] hover:bg-[#dde3ea] dark:hover:bg-[#282a2c] rounded-[1.5rem] cursor-pointer transition-all flex flex-col justify-between h-[180px]">
+                    <p className="text-[14px] font-medium leading-relaxed">{text}</p>
+                    <div className="w-10 h-10 rounded-full bg-white dark:bg-[#131314] flex items-center justify-center self-end shadow-sm">
+                      <Plus className="w-5 h-5 text-black/60 dark:text-white/60" />
                     </div>
-                  ))}
-               </div>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
-            messages.map((message: any) => (
+            messages.map((message: any, idx: number) => (
               <div
-                key={message.id}
+                key={`${message.id}-${idx}`}
                 className={cn(
                   "group flex gap-6 md:gap-10 items-start max-w-none animate-in fade-in duration-700",
                   message.role === 'user' ? "flex-row-reverse" : "flex-row"
@@ -214,9 +254,9 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
                   message.role === 'user' ? "bg-[#a142f4]" : "bg-transparent"
                 )}>
                   {message.role === 'user' ? (
-                     session?.user?.name?.[0]?.toUpperCase() || 'U'
+                    session?.user?.name?.[0]?.toUpperCase() || 'U'
                   ) : (
-                     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#4285f4] via-[#9b72cb] to-[#d96570] animate-pulse-slow" />
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#4285f4] via-[#9b72cb] to-[#d96570] animate-pulse-slow" />
                   )}
                 </div>
 
@@ -227,15 +267,15 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
                   <div className="text-[16px] leading-[1.6] tracking-wide w-full prose dark:prose-invert max-w-none font-normal">
                     {message.role === 'user' ? (
                       <div className="flex flex-col gap-3">
-                         {message.experimental_attachments?.map((f: any, i: number) => (
-                            <img src={f.url} key={i} className="max-w-[150px] rounded-xl" alt="attachment" />
-                         ))}
+                        {message.experimental_attachments?.map((f: any, i: number) => (
+                          <img src={f.url} key={i} className="max-w-[150px] rounded-xl" alt="attachment" />
+                        ))}
                         <div className="whitespace-pre-wrap">{message.content}</div>
                       </div>
                     ) : (
                       <Streamdown
                         shikiTheme={['github-light', 'github-dark']}
-                        isAnimating={status === 'streaming'}
+                        isAnimating={isLoading && idx === messages.length - 1}
                         plugins={streamdownPlugins}
                       >
                         {message.content}
@@ -249,11 +289,11 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
           
           {isLoading && !(messages[messages.length - 1] as any)?.content && (
             <div className="flex gap-6 md:gap-10">
-               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#4285f4] via-[#9b72cb] to-[#d96570] animate-spin-slow grow-0 shrink-0" />
-               <div className="flex-1 space-y-3 pt-2">
-                  <div className="h-4 w-full bg-black/5 dark:bg-white/5 rounded-full animate-pulse-subtle" />
-                  <div className="h-4 w-2/3 bg-black/5 dark:bg-white/5 rounded-full animate-pulse-subtle delay-75" />
-               </div>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#4285f4] via-[#9b72cb] to-[#d96570] animate-spin-slow grow-0 shrink-0" />
+              <div className="flex-1 space-y-3 pt-2">
+                <div className="h-4 w-full bg-black/5 dark:bg-white/5 rounded-full animate-pulse-subtle" />
+                <div className="h-4 w-2/3 bg-black/5 dark:bg-white/5 rounded-full animate-pulse-subtle delay-75" />
+              </div>
             </div>
           )}
         </div>
@@ -265,9 +305,9 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
             </button>
           )}
 
-          <ChatInputArea 
-            input={input}
-            setInput={(val) => (chatHelpers as any).setInput?.(val)}
+          <ChatInputArea
+            input={localInput}
+            setInput={setLocalInput}
             onFormSubmit={onFormSubmitHandler}
             files={files}
             setFiles={setFiles}
