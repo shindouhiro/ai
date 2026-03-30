@@ -11,11 +11,10 @@ import { cn } from '../lib/utils';
 import { useChatScroll } from '../hooks/use-chat-scroll';
 import { useStreamdownPlugins } from '../hooks/use-streamdown-plugins';
 import ChatSidebar from '@/components/chat/sidebar';
-import { getChatMessages } from '@/lib/actions';
 
 /**
  * AI 聊天演示页面
- * 已集成历史记录保存与查看功能
+ * 已切换为标准 JSON API 加载历史记录
  */
 export default function ChatPage() {
   const { data: session } = useSession();
@@ -35,7 +34,7 @@ export default function ChatPage() {
     transport,
     body: { chatId },
     onResponse: (response) => {
-      // 捕获 API 返回的 chatId (通常是由于新创建了会话)
+      // 捕获 API 返回的 chatId
       const headerChatId = response.headers.get('X-Chat-Id');
       if (headerChatId && chatId !== headerChatId) {
         setChatId(headerChatId);
@@ -43,17 +42,33 @@ export default function ChatPage() {
     }
   });
 
-  // 处理会话选择
+  // 处理会话选择 (切换为 Fetch API)
   const handleChatSelect = async (selectedId: string) => {
     setChatId(selectedId);
-    const history = await getChatMessages(selectedId);
-    // 转换为 useChat 需要的格式
-    setMessages(history.map(msg => ({
-      id: msg.id,
-      role: msg.role as any,
-      content: msg.content,
-      createdAt: new Date(msg.createdAt)
-    })));
+    try {
+      const res = await fetch(`/api/history/messages/${selectedId}`);
+      if (res.ok) {
+        const history = await res.json();
+        // 转换为 useChat 格式
+        setMessages(history.map((msg: any) => {
+          let content = msg.content;
+          try {
+            if (content.startsWith('[') || content.startsWith('{')) {
+              content = JSON.parse(content);
+            }
+          } catch (e) {}
+
+          return {
+            id: msg.id,
+            role: msg.role as any,
+            content,
+            createdAt: new Date(msg.createdAt)
+          };
+        }));
+      }
+    } catch (error) {
+      console.error("Fetch Messages Error:", error);
+    }
   };
 
   // 处理开启新对话
@@ -70,12 +85,23 @@ export default function ChatPage() {
         .map((part: any) => part.text)
         .join('');
     }
+    if (Array.isArray(message.content)) {
+      return message.content
+        .filter((part: any) => part.type === 'text')
+        .map((part: any) => part.text)
+        .join('');
+    }
     return '';
   };
 
   const getMessageImages = (message: any) => {
-    if (!Array.isArray(message.parts)) return [];
-    return message.parts.filter((part: any) => part.type === 'image');
+    if (Array.isArray(message.parts)) {
+      return message.parts.filter((part: any) => part.type === 'image');
+    }
+    if (Array.isArray(message.content)) {
+      return message.content.filter((part: any) => part.type === 'image');
+    }
+    return [];
   };
 
   const [input, setInput] = useState('');
@@ -102,7 +128,6 @@ export default function ChatPage() {
     if (e.target.files) {
       const newParts = await convertFileListToFileUIParts(e.target.files);
       setFiles((prev) => [...prev, ...newParts]);
-      // Clear input value to allow selecting same file again
       e.target.value = '';
     }
   };
@@ -200,7 +225,7 @@ export default function ChatPage() {
 
               <button
                 onClick={() => signOut()}
-                className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 hover:bg-rose-500/20 transition-all font-medium"
+                className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 hover:bg-rose-500/20 transition-all"
                 title="退出登录"
               >
                 <LogOut className="w-5 h-5" />
@@ -255,12 +280,7 @@ export default function ChatPage() {
                       {message.role === 'user' ? (
                         <div className="flex flex-col gap-3">
                           {getMessageImages(message).map((part: any, i: number) => (
-                            <img
-                              key={i}
-                              src={part.url || part.image}
-                              alt="Uploaded"
-                              className="max-w-full rounded-lg border border-white/10"
-                            />
+                            <img src={part.url || part.image} key={i} alt="Uploaded" className="max-w-full rounded-lg border border-white/10" />
                           ))}
                           <div className="whitespace-pre-wrap break-words">{getMessageText(message)}</div>
                         </div>
@@ -287,18 +307,7 @@ export default function ChatPage() {
                 </div>
               ))
             )}
-            {isLoading && !getMessageText(messages[messages.length - 1]) && (
-              <div className="flex gap-3 md:gap-6 mr-auto message-enter">
-                <div className="w-10 h-10 rounded-xl flex shrink-0 items-center justify-center bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10">
-                  <Bot className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
-                </div>
-                <div className="flex-1 flex flex-col gap-3 py-2">
-                  <div className="gemini-loading-bar" />
-                  <div className="gemini-loading-bar opacity-40 w-[60%]" />
-                </div>
-              </div>
-            )}
-
+            
             {!isAtBottom && messages.length > 0 && (
               <button
                 onClick={scrollToBottom}
@@ -310,12 +319,8 @@ export default function ChatPage() {
             )}
           </div>
 
-          {/* 输入框区域 */}
           <footer suppressHydrationWarning className="p-4 md:p-6 pb-6 md:pb-10 border-t border-black/5 dark:border-white/[0.08] bg-black/5 dark:bg-black/20">
-            <form
-              onSubmit={handleSubmit}
-              className="group relative flex flex-col gap-3 transition-all duration-300 max-w-4xl mx-auto"
-            >
+            <form onSubmit={handleSubmit} className="group relative flex flex-col gap-3 transition-all duration-300 max-w-4xl mx-auto">
               <div className="flex items-center justify-between px-1 mb-1">
                 <div className="flex items-center gap-2">
                   <button
@@ -323,12 +328,9 @@ export default function ChatPage() {
                     onClick={() => setIsOnline(!isOnline)}
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                      isOnline
-                        ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-600 dark:text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)]"
-                        : "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10"
+                      isOnline ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-600 dark:text-emerald-400" : "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40"
                     )}
                   >
-                    <div className={cn("w-1.5 h-1.5 rounded-full", isOnline ? "bg-emerald-500 animate-pulse" : "bg-current opacity-50")} />
                     联网搜索
                   </button>
                   <button
@@ -336,99 +338,34 @@ export default function ChatPage() {
                     onClick={() => setIsDeepThinking(!isDeepThinking)}
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                      isDeepThinking
-                        ? "bg-violet-500/10 border-violet-500/50 text-violet-600 dark:text-violet-400 shadow-[0_0_15px_-3px_rgba(139,92,246,0.3)]"
-                        : "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10"
+                      isDeepThinking ? "bg-violet-500/10 border-violet-500/50 text-violet-600 dark:text-violet-400" : "bg-black/5 dark:bg-white/5 border-transparent text-black/40 dark:text-white/40"
                     )}
                   >
-                    <div className={cn("w-1.5 h-1.5 rounded-full", isDeepThinking ? "bg-violet-500 animate-pulse" : "bg-current opacity-50")} />
                     深度思考
                   </button>
                 </div>
               </div>
 
-              {files.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-2 px-1">
-                  {files.map((file, index) => (
-                    <div key={index} className="relative w-16 h-16 rounded-xl overflow-hidden border border-black/10 dark:border-white/20 group/item shadow-sm">
-                      <img src={file.url} className="w-full h-full object-cover" alt="preview" />
-                      <button
-                        type="button"
-                        onClick={() => removeFile(index)}
-                        className="absolute top-1 right-1 p-1 bg-black/60 rounded-full hover:bg-black/80 transition-colors backdrop-blur-sm"
-                      >
-                        <X className="w-2.5 h-2.5 text-white" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="relative flex items-end bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl shadow-xl shadow-black/[0.02] dark:shadow-black/20 p-2 focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all">
+              <div className="relative flex items-end bg-white dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl shadow-xl p-2 focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all">
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" multiple className="hidden" />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isLoading}
-                  className="p-3 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-all mb-1"
-                  title="上传文件"
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
-
-                <button
-                  type="button"
-                  className="p-3 text-black/40 dark:text-white/40 hover:text-indigo-500 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl transition-all mb-1"
-                  title="提示词增强"
-                  onClick={() => {
-                    if (input.trim()) {
-                      setInput(prev => `请优化以下需求，使其更专业、更清晰：\n\n${prev}`);
-                    }
-                  }}
-                >
-                  <Wand2 className="w-5 h-5" />
-                </button>
-
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-3 text-black/40 dark:text-white/40 hover:text-black dark:hover:text-white rounded-xl mb-1"><Paperclip className="w-5 h-5" /></button>
                 <textarea
                   ref={textareaRef}
                   value={input}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  placeholder={files.length > 0 ? "描述一下这些图片..." : "描述你的需求或问题..."}
+                  placeholder="询问任何问题..."
                   rows={1}
-                  className="flex-1 max-h-[200px] bg-transparent border-none focus:ring-0 outline-none p-3 text-black dark:text-white text-base resize-none placeholder:text-black/20 dark:placeholder:text-white/20"
+                  className="flex-1 max-h-[200px] bg-transparent border-none focus:ring-0 outline-none p-3 text-black dark:text-white resize-none"
                   disabled={isLoading}
                 />
-
                 {isLoading ? (
-                  <button
-                    type="button"
-                    onClick={() => stop()}
-                    className="p-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition-all shadow-lg active:scale-95 mb-1 ml-1"
-                    title="停止生成"
-                  >
-                    <Square className="w-5 h-5 fill-current" />
-                  </button>
+                  <button type="button" onClick={() => stop()} className="p-3 bg-rose-500 text-white rounded-xl mb-1 ml-1"><Square className="w-5 h-5 fill-current" /></button>
                 ) : (
-                  <button
-                    type="submit"
-                    disabled={!input.trim() && files.length === 0}
-                    className={cn(
-                      "p-3 rounded-xl transition-all shadow-lg mb-1 ml-1",
-                      (!input.trim() && files.length === 0)
-                        ? "bg-black/5 dark:bg-white/5 text-black/20 dark:text-white/20 shadow-none cursor-not-allowed"
-                        : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20 active:scale-95"
-                    )}
-                    title="发送消息"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
+                  <button type="submit" disabled={!input.trim() && files.length === 0} className={cn("p-3 rounded-xl mb-1 ml-1", (!input.trim() && files.length === 0) ? "bg-black/5 text-black/20" : "bg-indigo-600 text-white")}><Send className="w-5 h-5" /></button>
                 )}
               </div>
             </form>
-            <p className="mt-4 text-center text-[10px] text-black/30 dark:text-white/30 font-medium tracking-widest uppercase opacity-50">
-              Intelligent AI Assistant • Multimodal Support
-            </p>
           </footer>
         </div>
       </div>

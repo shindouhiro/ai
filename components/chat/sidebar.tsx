@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getChatSessions, deleteChat, createChat } from "@/lib/actions";
+import { deleteChat } from "@/lib/actions";
 import { Plus, MessageSquare, Trash2, ChevronLeft, ChevronRight, LogOut, LayoutGrid, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -26,9 +26,17 @@ export default function ChatSidebar({
   const [loading, setLoading] = useState(true);
 
   const fetchSessions = async () => {
-    const data = await getChatSessions();
-    setSessions(data);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/history/sessions");
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data);
+      }
+    } catch (error) {
+      console.error("Fetch Sessions Error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
