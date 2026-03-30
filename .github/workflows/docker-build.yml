@@ -2,7 +2,7 @@ name: Build and Deploy
 
 on:
   push:
-    branches: [ "main","master","auth]
+    branches: [ "main","master","auth"]
   workflow_dispatch:
 
 env:
