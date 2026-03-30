@@ -4,18 +4,16 @@ import { SessionProvider } from 'next-auth/react';
 import { ThemeProvider } from 'next-themes';
 import React from 'react';
 
-export function Providers({ children }: { children: React.ReactNode }) {
+/**
+ * 针对 React 19 + Next.js 16 的 Providers
+ */
+export function Providers({ children, session }: { children: React.ReactNode, session?: any }) {
+  console.log('[Providers] Received Session Prop:', !!session);
   return (
-    <SessionProvider>
-      <ThemeProvider 
-        attribute="class" 
-        defaultTheme="dark" 
-        enableSystem={true} 
-        disableTransitionOnChange
-      >
+    <SessionProvider session={session}>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         {children}
       </ThemeProvider>
     </SessionProvider>
   );
 }
-
