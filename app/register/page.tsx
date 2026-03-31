@@ -1,6 +1,8 @@
 import RegisterForm from "@/components/auth/register-form";
 import { Bot, Sparkles } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default function RegisterPage() {
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center p-6 bg-white dark:bg-[#0a0a0a] overflow-hidden">

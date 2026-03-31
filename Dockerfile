@@ -1,11 +1,15 @@
 # 阶段 1: 依赖安装
-FROM node:20-alpine AS base
+FROM node:20-bookworm-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
 FROM base AS deps
-RUN apk add --no-cache libc6-compat python3 make g++
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile

@@ -1,5 +1,7 @@
 import LoginForm from "@/components/auth/login-form";
 
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   return (
     <main className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#050505] selection:bg-blue-500/30">
