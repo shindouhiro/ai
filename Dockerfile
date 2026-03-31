@@ -9,19 +9,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# 阶段 2: 构建应用
-FROM base AS builder
+# 阶段 2: 构建应用（使用全量镜像以保证构建期 worker 的稳定性）
+FROM node:20 AS builder
 WORKDIR /app
-# 先拷贝依赖描述文件，充分利用 Docker 构建缓存
-# 只要 package.json / lockfile 没变，pnpm install 层就会被缓存跳过
-COPY package.json pnpm-lock.yaml .npmrc ./
-RUN pnpm install --frozen-lockfile
-# 在当前 Linux x64 / Node.js v20 环境重新编译原生模块
-RUN pnpm rebuild better-sqlite3
-# 再拷贝源码（源码变更不会使上面的缓存失效）
-COPY . .
+# 使用 ENV key=value 格式
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm run build
+ENV NEXT_CPU_COUNT=1
+# 增加内存限制，防止 Worker 在构建期间崩溃
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN corepack enable && pnpm install --frozen-lockfile
+RUN pnpm rebuild better-sqlite3
+
+COPY . .
+# 强制使用 Webpack 编译器，避免 Turbopack 自动探测导致的逻辑冲突
+RUN npx next build --webpack
 
 # 阶段 3: 生产运行（精简镜像）
 FROM node:20-bookworm-slim AS runner
