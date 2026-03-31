@@ -1,14 +1,12 @@
 "use client";
-
-import { useEffect, useState } from "react";
+ 
+import { useEffect, useState, useCallback, memo } from "react";
 import { deleteChat } from "@/lib/actions";
-import { Plus, MessageSquare, Trash2, ChevronLeft, ChevronRight, LayoutGrid, Bot, Clock, History, Settings, ExternalLink, MoreVertical, LogOut, User, Moon, Sun } from "lucide-react";
+import { Plus, MessageSquare, Trash2, LayoutGrid, History, Settings, MoreVertical, LogOut, User, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, isToday, isYesterday } from "date-fns";
-import { zhCN } from "date-fns/locale";
 import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/app/providers";
-
+ 
 interface ChatSidebarProps {
   currentChatId?: string;
   onChatSelect: (chatId: string) => void;
@@ -16,20 +14,24 @@ interface ChatSidebarProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
 }
-
-export default function ChatSidebar({
+ 
+/**
+ * 助手：侧边栏组件
+ * 使用 React.memo 避免在主对话区域流式更新时导致侧边栏重渲染
+ */
+const ChatSidebar = memo(({
   currentChatId,
   onChatSelect,
   onNewChat,
   isOpen,
   setIsOpen,
-}: ChatSidebarProps) {
+}: ChatSidebarProps) => {
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const fetchSessions = async () => {
+ 
+  const fetchSessions = useCallback(async () => {
     try {
       const res = await fetch("/api/history/sessions", {
         credentials: 'same-origin'
@@ -43,27 +45,29 @@ export default function ChatSidebar({
     } finally {
       setLoading(false);
     }
-  };
-
+  }, []);
+ 
   useEffect(() => {
     fetchSessions();
-  }, [currentChatId]);
-
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  }, [currentChatId, fetchSessions]);
+ 
+  const handleDelete = useCallback(async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm("确定要删除这段对话吗？")) {
       await deleteChat(id);
       fetchSessions();
       if (currentChatId === id) onNewChat();
     }
-  };
-
-  const getTimeLabel = (date: Date) => {
-    if (isToday(date)) return "今天";
-    if (isYesterday(date)) return "昨天";
-    return format(date, "MM月dd日", { locale: zhCN });
-  };
-
+  }, [currentChatId, fetchSessions, onNewChat]);
+ 
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  }, [theme, setTheme]);
+ 
+  const toggleSidebar = useCallback(() => {
+    setIsOpen(!isOpen);
+  }, [isOpen, setIsOpen]);
+ 
   return (
     <>
       <aside
@@ -75,13 +79,13 @@ export default function ChatSidebar({
         {/* Top Header - Minimal Gemini style */}
         <div className="p-4 flex items-center justify-between">
           <button
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={toggleSidebar}
             className="p-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors text-black/60 dark:text-white/60"
           >
             <LayoutGrid className="w-6 h-6" />
           </button>
         </div>
-
+ 
         {/* New Chat Button */}
         <div className="px-3 mb-6">
           <button
@@ -95,11 +99,11 @@ export default function ChatSidebar({
             {isOpen && <span className="text-sm font-medium whitespace-nowrap">新对话</span>}
           </button>
         </div>
-
+ 
         {/* History List */}
         <div className="flex-1 overflow-y-auto px-3 space-y-2 scrollbar-none">
           {isOpen && <p className="px-4 text-[13px] font-bold text-black/40 dark:text-white/40 mb-2">最近</p>}
-
+ 
           {loading ? (
             <div className={cn("space-y-4 px-2", !isOpen && "hidden")}>
               {[1, 2, 3].map(i => (
@@ -136,7 +140,7 @@ export default function ChatSidebar({
             ))
           )}
         </div>
-
+ 
         {/* Footer Area - Minimal */}
         <div className="p-3 mt-auto border-t border-black/5 dark:border-white/5 space-y-4">
           <div className="space-y-1">
@@ -149,14 +153,14 @@ export default function ChatSidebar({
               {isOpen && <span className="text-[13px] font-medium">设置</span>}
             </button>
             <button 
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              onClick={toggleTheme}
               className={cn("w-full flex items-center gap-3 px-4 py-2.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-black/70 dark:text-white/70 transition-all", !isOpen && "justify-center px-0")}
             >
               {theme === 'dark' ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
               {isOpen && <span className="text-[13px] font-medium">{theme === 'dark' ? '浅色模式' : '深色模式'}</span>}
             </button>
           </div>
-
+ 
           {/* User Profile & Logout */}
           <div className={cn(
             "pt-2 border-t border-black/5 dark:border-white/5",
@@ -194,7 +198,7 @@ export default function ChatSidebar({
           </div>
         </div>
       </aside>
-
+ 
       {/* Mobile Drawer Overlay */}
       <div
         onClick={() => setIsOpen(false)}
@@ -205,4 +209,8 @@ export default function ChatSidebar({
       />
     </>
   );
-}
+});
+ 
+ChatSidebar.displayName = "ChatSidebar";
+ 
+export default ChatSidebar;

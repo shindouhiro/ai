@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import { cn } from "@/lib/utils";
 import { Bot, User } from "lucide-react";
 import { Streamdown } from "streamdown";
@@ -7,31 +7,32 @@ import { code as codePlugin } from "@streamdown/code";
 import { math as mathPlugin } from "@streamdown/math";
 import { mermaid as mermaidPlugin } from "@streamdown/mermaid";
 import { cjk as cjkPlugin } from "@streamdown/cjk";
-
-
+import { memo, useMemo } from "react";
+ 
 interface ChatContentProps {
   messages: any[];
   isStreaming: boolean;
   resolvedTheme?: string;
 }
-
+ 
+// 1. 提取静态插件配置，避免 MessageRenderer 每次渲染时重新创建对象
+// 符合 vercel-react-best-practices 中的 Rendering Performance 优化
+const STREAMDOWN_PLUGINS = {
+  code: codePlugin,
+  math: mathPlugin,
+  mermaid: mermaidPlugin,
+  cjk: cjkPlugin
+};
+ 
 /**
  * 助手：渲染单条消息内容 (使用顶级 Streamdown 引擎)
  */
-function MessageRenderer({ content }: { content: any }) {
-  // 注入全量插件，开启极致渲染体验
-  const plugins = {
-    code: codePlugin,
-    math: mathPlugin,
-    mermaid: mermaidPlugin,
-    cjk: cjkPlugin
-  };
-
+const MessageRenderer = memo(({ content }: { content: any }) => {
   // 处理文本消息
   if (typeof content === 'string') {
     return (
       <Streamdown 
-        plugins={plugins}
+        plugins={STREAMDOWN_PLUGINS}
         controls={{
           code: { copy: true, download: true },
           mermaid: { download: true }
@@ -53,7 +54,7 @@ function MessageRenderer({ content }: { content: any }) {
             return (
               <Streamdown 
                 key={i} 
-                plugins={plugins}
+                plugins={STREAMDOWN_PLUGINS}
                 controls={{
                   code: { copy: true, download: true },
                   mermaid: { download: true }
@@ -83,9 +84,50 @@ function MessageRenderer({ content }: { content: any }) {
   }
   
   return null;
-}
-
-export function ChatContent({ messages, isStreaming }: ChatContentProps) {
+});
+ 
+MessageRenderer.displayName = "MessageRenderer";
+ 
+/**
+ * 渲染一条具体的消息项
+ */
+const MessageItem = memo(({ m, i }: { m: any, i: number }) => {
+  return (
+    <div 
+      className={cn(
+        "group flex gap-6 md:gap-10 items-start px-2 py-4 rounded-3xl transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.01]",
+      )}
+    >
+      <div className={cn(
+        "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 mt-1 shadow-sm transition-all",
+        m.role === 'user' 
+          ? "bg-[#333537] text-white rotate-[-3deg]" 
+          : "bg-[#4285f4] text-white shadow-[#4285f4]/20 shadow-lg rotate-[3deg]"
+      )}>
+        {m.role === 'user' ? <User className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
+      </div>
+      
+      <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-[12px] text-black/40 dark:text-white/40 uppercase tracking-[0.2em] select-none">
+             {m.role === 'user' ? 'USER' : 'GEMINI AI'}
+          </span>
+          <span className="text-black/10 dark:text-white/10 text-[10px]">|</span>
+          <span className="text-[11px] text-black/30 dark:text-white/20">
+             {new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        <div className="text-black/90 dark:text-white/90 leading-relaxed font-normal">
+           <MessageRenderer content={m.content} />
+        </div>
+      </div>
+    </div>
+  );
+});
+ 
+MessageItem.displayName = "MessageItem";
+ 
+export const ChatContent = memo(({ messages, isStreaming }: ChatContentProps) => {
   return (
     <div className="max-w-4xl mx-auto w-full space-y-12 pb-32">
       {messages.length === 0 ? (
@@ -105,36 +147,7 @@ export function ChatContent({ messages, isStreaming }: ChatContentProps) {
         </div>
       ) : (
         messages.map((m, i) => (
-          <div 
-            key={m.id || i} 
-            className={cn(
-              "group flex gap-6 md:gap-10 items-start px-2 py-4 rounded-3xl transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.01]",
-            )}
-          >
-            <div className={cn(
-              "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 mt-1 shadow-sm transition-all",
-              m.role === 'user' 
-                ? "bg-[#333537] text-white rotate-[-3deg]" 
-                : "bg-[#4285f4] text-white shadow-[#4285f4]/20 shadow-lg rotate-[3deg]"
-            )}>
-              {m.role === 'user' ? <User className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
-            </div>
-            
-            <div className="flex-1 min-w-0 space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-[12px] text-black/40 dark:text-white/40 uppercase tracking-[0.2em] select-none">
-                   {m.role === 'user' ? 'USER' : 'GEMINI AI'}
-                </span>
-                <span className="text-black/10 dark:text-white/10 text-[10px]">|</span>
-                <span className="text-[11px] text-black/30 dark:text-white/20">
-                   {new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-              <div className="text-black/90 dark:text-white/90 leading-relaxed font-normal">
-                 <MessageRenderer content={m.content} />
-              </div>
-            </div>
-          </div>
+          <MessageItem key={m.id || i} m={m} i={i} />
         ))
       )}
       
@@ -148,6 +161,8 @@ export function ChatContent({ messages, isStreaming }: ChatContentProps) {
       )}
     </div>
   );
-}
-
+});
+ 
+ChatContent.displayName = "ChatContent";
+ 
 export default ChatContent;

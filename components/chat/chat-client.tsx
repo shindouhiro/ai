@@ -8,6 +8,7 @@ import ChatSidebar from "./sidebar";
 import { useTheme } from "@/app/providers";
 import { cn } from "@/lib/utils";
 import { LayoutGrid } from "lucide-react";
+import { useCallback, memo } from "react";
 
 /**
  * 助手：标准化历史消息格式
@@ -37,7 +38,7 @@ export function ChatClient({ initialSession }: { initialSession?: any }) {
   /**
    * 选择历史会话
    */
-  const handleChatSelect = async (selectedId: string) => {
+  const handleChatSelect = useCallback(async (selectedId: string) => {
     setChatId(selectedId);
     try {
       const res = await fetch(`/api/history/messages/${selectedId}`, { credentials: "same-origin" });
@@ -49,21 +50,21 @@ export function ChatClient({ initialSession }: { initialSession?: any }) {
       console.error("Fetch History Error:", error);
     }
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
-  };
+  }, [setMessages]);
 
   /**
    * 开启新对话
    */
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     setChatId(undefined);
     setMessages([]);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
-  };
+  }, [setMessages]);
 
   /**
    * 核心流提交逻辑 (线性、无深度嵌套)
    */
-  const onFormSubmitHandler = async (e: React.FormEvent, value: string) => {
+  const onFormSubmitHandler = useCallback(async (e: React.FormEvent, value: string) => {
     e.preventDefault();
     const content = value || localInput;
     if (!content.trim() && files.length === 0 && !isStreaming) return;
@@ -85,6 +86,9 @@ export function ChatClient({ initialSession }: { initialSession?: any }) {
       createdAt: new Date()
     } as any;
 
+    // 获取当前消息快照用于请求
+    const currentMessages = messages;
+
     setMessages((prev: any[]) => [...prev, userMessage, initialAiMessage]);
     setLocalInput("");
     setIsStreaming(true);
@@ -94,7 +98,7 @@ export function ChatClient({ initialSession }: { initialSession?: any }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ messages: [...messages, userMessage], chatId, metadata: { isOnline } })
+        body: JSON.stringify({ messages: [...currentMessages, userMessage], chatId, metadata: { isOnline } })
       });
 
       if (!response.ok) throw new Error("Sync failure");
@@ -125,7 +129,7 @@ export function ChatClient({ initialSession }: { initialSession?: any }) {
     } finally {
       setIsStreaming(false);
     }
-  };
+  }, [messages, chatId, localInput, files, isOnline, isStreaming, setMessages]);
 
   return (
     <div className="flex h-screen w-full bg-[#f8fafd] dark:bg-[#0e0e0e] overflow-hidden relative">
