@@ -4,6 +4,8 @@ import { chats } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 /**
  * 获取当前用户的聊天会话列表 (JSON API 版)
  */

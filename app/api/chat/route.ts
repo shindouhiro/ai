@@ -7,6 +7,8 @@ import { chatMessages, chats } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
+export const dynamic = "force-dynamic";
+
 /**
  * 助手：提取消息内容 (遵循 Good Taste：消除特殊情况)
  */
