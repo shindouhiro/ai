@@ -75,9 +75,7 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
   }, []);
 
   // 仅使用 useChat 管理消息数组
-  const { messages, setMessages, stop } = useChat({
-     api: '/api/chat',
-  });
+  const { messages, setMessages, stop } = useChat();
 
   const handleChatSelect = async (selectedId: string) => {
     setChatId(selectedId);
@@ -109,7 +107,7 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
     const messageContent = explicitValue || localInput;
     if (!messageContent.trim() && files.length === 0 && !isStreaming) return;
 
-    // 1. 构造用户消息和占位 AI 消息
+    // 1. 构造用户消息和占位 AI 消息 (必须带上 parts 以适配 SDK v6)
     const userMsgId = `user-${Date.now()}`;
     const aiMsgId = `ai-${Date.now()}`;
     
@@ -117,19 +115,21 @@ export default function ChatClient({ initialSession }: ChatClientProps) {
       id: userMsgId,
       role: 'user',
       content: messageContent,
+      parts: [{ type: 'text', text: messageContent }],
       experimental_attachments: files.map(f => ({ url: f.url, name: f.name, contentType: 'image/jpeg' })),
       createdAt: new Date()
-    };
+    } as any;
 
     const initialAiMessage = {
       id: aiMsgId,
       role: 'assistant',
       content: '',
+      parts: [],
       createdAt: new Date()
-    };
+    } as any;
 
     // 2. 更新 UI 并开启流状态
-    setMessages(prev => [...prev, userMessage, initialAiMessage]);
+    setMessages((prev: any[]) => [...prev, userMessage, initialAiMessage]);
     setLocalInput('');
     setFiles([]);
     setIsStreaming(true);
