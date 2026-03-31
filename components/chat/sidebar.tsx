@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { deleteChat } from "@/lib/actions";
-import { Plus, MessageSquare, Trash2, ChevronLeft, ChevronRight, LayoutGrid, Bot, Clock, History, Settings, ExternalLink, MoreVertical } from "lucide-react";
+import { Plus, MessageSquare, Trash2, ChevronLeft, ChevronRight, LayoutGrid, Bot, Clock, History, Settings, ExternalLink, MoreVertical, LogOut, User, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { useSession, signOut } from "next-auth/react";
+import { useTheme } from "@/app/providers";
 
 interface ChatSidebarProps {
   currentChatId?: string;
@@ -22,6 +24,8 @@ export default function ChatSidebar({
   isOpen,
   setIsOpen,
 }: ChatSidebarProps) {
+  const { data: session } = useSession();
+  const { theme, setTheme } = useTheme();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -134,7 +138,7 @@ export default function ChatSidebar({
         </div>
 
         {/* Footer Area - Minimal */}
-        <div className="p-3 mt-auto border-t border-black/5 dark:border-white/5">
+        <div className="p-3 mt-auto border-t border-black/5 dark:border-white/5 space-y-4">
           <div className="space-y-1">
             <button className={cn("w-full flex items-center gap-3 px-4 py-2.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-black/70 dark:text-white/70 transition-all", !isOpen && "justify-center px-0")}>
               <History className="w-5 h-5 shrink-0" />
@@ -144,12 +148,50 @@ export default function ChatSidebar({
               <Settings className="w-5 h-5 shrink-0" />
               {isOpen && <span className="text-[13px] font-medium">设置</span>}
             </button>
+            <button 
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className={cn("w-full flex items-center gap-3 px-4 py-2.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-black/70 dark:text-white/70 transition-all", !isOpen && "justify-center px-0")}
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
+              {isOpen && <span className="text-[13px] font-medium">{theme === 'dark' ? '浅色模式' : '深色模式'}</span>}
+            </button>
           </div>
-          {/* {isOpen && (
-            <div className="mt-4 px-4 py-2 text-[11px] text-black/40 dark:text-white/30 flex items-center gap-2">
-               北京，中国 • 基于 Gemini 风格
+
+          {/* User Profile & Logout */}
+          <div className={cn(
+            "pt-2 border-t border-black/5 dark:border-white/5",
+            !isOpen && "flex flex-col items-center"
+          )}>
+            <div className={cn(
+              "flex items-center gap-3 px-3 py-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02]",
+              !isOpen && "w-10 h-10 p-0 justify-center rounded-full"
+            )}>
+              <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-blue-600" />
+              </div>
+              {isOpen && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-black/80 dark:text-white/80 truncate">
+                    {session?.user?.name || "User"}
+                  </p>
+                  <p className="text-[11px] text-black/40 dark:text-white/30 truncate">
+                    {session?.user?.email}
+                  </p>
+                </div>
+              )}
             </div>
-          )} */}
+            
+            <button 
+              onClick={() => signOut()}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-2.5 mt-2 rounded-full text-rose-500 hover:bg-rose-500/10 transition-all",
+                !isOpen && "justify-center px-0 mt-4"
+              )}
+            >
+              <LogOut className="w-5 h-5 shrink-0" />
+              {isOpen && <span className="text-[13px] font-medium">退出登录</span>}
+            </button>
+          </div>
         </div>
       </aside>
 

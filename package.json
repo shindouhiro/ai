@@ -2,12 +2,15 @@
   "name": "ai",
   "version": "0.1.0",
   "private": true,
+  "skills": {
+    "agents": "./.agents/skills"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "prepare": "skills-npm --agents claude,agents --yes"
+    "prepare": "skills-npm --agents agents --yes"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.48",

@@ -20,6 +20,13 @@ export const metadata: Metadata = {
   description: "A minimalist, high-fidelity AI chat interface inspired by Google Gemini.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 import { Providers } from "./providers";
 import { auth } from "@/auth";
 
@@ -41,7 +48,10 @@ export default async function RootLayout({
       lang="zh-CN"
       suppressHydrationWarning
     >
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-white dark:bg-[#0a0a0a] transition-colors duration-300`}>
+      <body 
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-white dark:bg-[#0a0a0a] transition-colors duration-300`}
+        suppressHydrationWarning
+      >
         <Providers session={session}>{children}</Providers>
       </body>
     </html>

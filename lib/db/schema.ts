@@ -3,6 +3,7 @@ import {
   sqliteTable,
   text,
   primaryKey,
+  index, // 新增：引入索引支持
 } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
@@ -91,7 +92,10 @@ export const chats = sqliteTable("chat", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
-});
+}, (table) => ({
+  userIdIdx: index("user_id_idx").on(table.userId),
+  updatedAtIdx: index("updated_at_idx").on(table.updatedAt),
+}));
 
 /**
  * 消息记录表
@@ -99,6 +103,7 @@ export const chats = sqliteTable("chat", {
 export const chatMessages = sqliteTable("chat_message", {
   id: text("id")
     .primaryKey()
+    .notNull()
     .$defaultFn(() => crypto.randomUUID()),
   chatId: text("chatId")
     .notNull()
@@ -108,7 +113,9 @@ export const chatMessages = sqliteTable("chat_message", {
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
-});
+}, (table) => ({
+  chatIdIdx: index("chat_id_idx").on(table.chatId),
+}));
 
 // 定义关系
 export const usersRelations = relations(users, ({ many }) => ({
