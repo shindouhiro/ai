@@ -6,7 +6,13 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["better-sqlite3", "bindings", "file-uri-to-path"],
   webpack: (config, { isServer }) => {
     if (isServer) {
-        config.externals = [...(config.externals || []), 'better-sqlite3'];
+        // 增加 bindings / file-uri-to-path 为外部，以防 nft 追踪失败
+        config.externals = [
+          ...(config.externals || []), 
+          'better-sqlite3', 
+          'bindings', 
+          'file-uri-to-path'
+        ];
     }
     return config;
   },

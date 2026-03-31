@@ -1,5 +1,5 @@
 # 阶段 1: 基础环境（含编译工具）
-FROM node:20-bookworm-slim AS base
+FROM node:20 AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -9,25 +9,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# 阶段 2: 构建应用（使用全量镜像以保证构建期 worker 的稳定性）
-FROM node:20 AS builder
+# 阶段 2: 构建应用
+FROM base AS builder
 WORKDIR /app
-# 使用 ENV key=value 格式
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_CPU_COUNT=1
-# 增加内存限制，防止 Worker 在构建期间崩溃
+# 提供充足内存给 Next.js Worker
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 COPY package.json pnpm-lock.yaml .npmrc ./
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
+# 在当前 Linux x64 环境重新编译，生成符合当前 ABI (v115) 的 .node 文件
 RUN pnpm rebuild better-sqlite3
 
 COPY . .
-# 强制使用 Webpack 编译器，避免 Turbopack 自动探测导致的逻辑冲突
+# 强制使用 webpack
 RUN npx next build --webpack
 
-# 阶段 3: 生产运行（精简镜像）
-FROM node:20-bookworm-slim AS runner
+# 阶段 3: 生产运行（使用全量镜像以保证二进制库的完整性）
+FROM node:20 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -41,8 +41,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 关键补丁：手动补全无法被 Next.js nft 完全识别的原生包及其核心加载包
-# 特别是 bindings。虽然它是 JS，但在作为外部包被调用时，必须物理存在于 node_modules 中。
+# 手动补全原生包。即使是全量镜像， standalone 模式依然可能在路径解析上存在瑕疵。
+# 必须物理存在于 node_modules，因为我们已经在 webpack 层面将其设为 external。
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/bindings ./node_modules/bindings
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/file-uri-to-path ./node_modules/file-uri-to-path
