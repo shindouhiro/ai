@@ -6,10 +6,16 @@ const globalForDb = global as unknown as { db: any };
  
 function createDb() {
   if (!globalForDb.db) {
-    // 强制使用动态 require，避免 Next.js 静态分析尝试捆绑它
-    const Database = require("better-sqlite3");
-    const sqlite = new Database("sqlite.db");
-    globalForDb.db = drizzle(sqlite, { schema });
+    // 究极方案：使用 eval('require') 绕过 Webpack 所有对其内容的静态扫描
+    // 确保在运行时它被当做一个纯粹的系统环境 require 运行
+    try {
+      const Database = eval('require("better-sqlite3")');
+      const sqlite = new Database("sqlite.db");
+      globalForDb.db = drizzle(sqlite, { schema });
+    } catch (e) {
+      console.error("Database initialization failed:", e);
+      throw e;
+    }
   }
   return globalForDb.db;
 }
