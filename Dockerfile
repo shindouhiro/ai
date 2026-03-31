@@ -38,6 +38,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# 极其重要：强制拷贝 better-sqlite3 目录
+# Next.js standalone 模式在处理带有 .node 二进制文件的原生模块时经常漏掉内容
+# 手动拷贝确保在生产环境的 /app/node_modules/better-sqlite3 下能找到绑定文件
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
+
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
