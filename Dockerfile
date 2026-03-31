@@ -38,8 +38,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# standalone 的 nft 会跳过 .node 二进制文件，必须手动补全
+# 关键补丁：手动补全无法被 Next.js nft 完全识别的原生包及其核心加载包
+# 特别是 bindings。虽然它是 JS，但在作为外部包被调用时，必须物理存在于 node_modules 中。
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/bindings ./node_modules/bindings
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/file-uri-to-path ./node_modules/file-uri-to-path
 
 USER nextjs
 EXPOSE 3000
