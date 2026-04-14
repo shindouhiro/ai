@@ -48,9 +48,12 @@ export async function registerUser(
   }
 
   try {
-    const existingUser = await db.query.users.findFirst({
-      where: eq(users.email, email),
-    });
+    const existingUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    const existingUser = existingUsers[0];
 
     if (existingUser) {
       return "该邮箱已被注册";

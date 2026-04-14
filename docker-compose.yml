@@ -7,8 +7,12 @@ services:
     restart: always
     ports:
       - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ai
       - OPENAI_BASE_URL=https://api.zyai.online/v1
       - OPENAI_API_KEY=sk-2fmJFAh9ZCJY7NIi2e573aF450Ec49AbA36c5c2d3bFaC73a
       - TAVILY_API_KEY=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
@@ -18,3 +22,24 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  postgres:
+    image: postgres:16
+    container_name: ai-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=ai
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pgdata:

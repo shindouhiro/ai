@@ -34,7 +34,7 @@ export default function RegisterForm() {
               type="text"
               placeholder="您的称呼"
               required
-              className="w-full pl-11 pr-4 py-4 bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20"
+              className="w-full pl-11 pr-4 py-4 bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20 text-black dark:text-white"
             />
           </div>
         </div>
@@ -50,7 +50,7 @@ export default function RegisterForm() {
               type="email"
               placeholder="hello@example.com"
               required
-              className="w-full pl-11 pr-4 py-4 bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20"
+              className="w-full pl-11 pr-4 py-4 bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20 text-black dark:text-white"
             />
           </div>
         </div>
@@ -66,7 +66,7 @@ export default function RegisterForm() {
               type="password"
               placeholder="••••••••"
               required
-              className="w-full pl-11 pr-4 py-4 bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20"
+              className="w-full pl-11 pr-4 py-4 bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20 text-black dark:text-white"
             />
           </div>
         </div>

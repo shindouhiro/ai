@@ -1,23 +1,24 @@
 import {
   integer,
-  sqliteTable,
+  pgTable,
   text,
+  timestamp,
   primaryKey,
-  index, // 新增：引入索引支持
-} from "drizzle-orm/sqlite-core";
+  index,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
 
 /**
  * 用户表
  */
-export const users = sqliteTable("user", {
+export const users = pgTable("user", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name"),
   email: text("email").unique(),
-  emailVerified: integer("email_verified", { mode: "timestamp_ms" }),
+  emailVerified: timestamp("email_verified", { withTimezone: true, mode: "date" }),
   image: text("image"),
   password: text("password"),
 });
@@ -25,7 +26,7 @@ export const users = sqliteTable("user", {
 /**
  * 账号表 (第三方登录)
  */
-export const accounts = sqliteTable(
+export const accounts = pgTable(
   "account",
   {
     userId: text("userId")
@@ -52,23 +53,23 @@ export const accounts = sqliteTable(
 /**
  * 会话表
  */
-export const sessions = sqliteTable("session", {
+export const sessions = pgTable("session", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
+  expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull(),
 });
 
 /**
  * 验证令牌
  */
-export const verificationTokens = sqliteTable(
+export const verificationTokens = pgTable(
   "verificationToken",
   {
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
-    expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
+    expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull(),
   },
   (vt) => ({
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
@@ -78,7 +79,7 @@ export const verificationTokens = sqliteTable(
 /**
  * 聊天会话表
  */
-export const chats = sqliteTable("chat", {
+export const chats = pgTable("chat", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -86,12 +87,12 @@ export const chats = sqliteTable("chat", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
     .notNull()
-    .$defaultFn(() => new Date()),
+    .defaultNow(),
 }, (table) => ({
   userIdIdx: index("user_id_idx").on(table.userId),
   updatedAtIdx: index("updated_at_idx").on(table.updatedAt),
@@ -100,7 +101,7 @@ export const chats = sqliteTable("chat", {
 /**
  * 消息记录表
  */
-export const chatMessages = sqliteTable("chat_message", {
+export const chatMessages = pgTable("chat_message", {
   id: text("id")
     .primaryKey()
     .notNull()
@@ -110,9 +111,9 @@ export const chatMessages = sqliteTable("chat_message", {
     .references(() => chats.id, { onDelete: "cascade" }),
   role: text("role", { enum: ["user", "assistant", "system"] }).notNull(),
   content: text("content").notNull(), // 存储文本内容或 JSON 序列化的多模态内容
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
-    .$defaultFn(() => new Date()),
+    .defaultNow(),
 }, (table) => ({
   chatIdIdx: index("chat_id_idx").on(table.chatId),
 }));

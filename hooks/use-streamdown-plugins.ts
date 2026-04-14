@@ -3,7 +3,7 @@ import { createCodePlugin } from "@streamdown/code";
 import { createMermaidPlugin } from "@streamdown/mermaid";
 import { math } from "@streamdown/math";
 import { cjk } from "@streamdown/cjk";
-import { VegaLiteRenderer } from "../components/vega-lite-renderer";
+import { VegaLiteRenderer } from "@/components/vega-lite-renderer";
 
 export function useStreamdownPlugins(resolvedTheme: string | undefined) {
   return useMemo(() => {
