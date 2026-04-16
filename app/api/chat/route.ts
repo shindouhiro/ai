@@ -78,14 +78,19 @@ export const POST = auth(async (req) => {
     }
 
     // 3. 流式生成与助手消息同步
+    const systemPrompt = isOnline
+      ? `你是一个专业的 AI 助手，当前已开启联网搜索模式。当用户询问实时信息（天气、新闻、股价、最新事件等）时，你必须调用 search 工具获取最新数据，然后基于搜索结果回答用户问题。不要凭记忆回答实时性问题。`
+      : `你是一个专业的 AI 助手，当前处于离线模式，仅使用已有知识回答问题。`;
+
     const result = streamText({
       model: defaultModel,
       messages: modelMessages,
-      system: `你是一个专业的 AI 助手。当前模式：${isOnline ? '联网搜索' : '离线模式'}。`,
+      system: systemPrompt,
+      stopWhen: isOnline ? stepCountIs(3) : stepCountIs(1),
       tools: isOnline ? {
         search: tool({
-          description: '获取互联网实时信息。',
-          inputSchema: z.object({ query: z.string() }),
+          description: '搜索互联网获取实时信息，包括天气、新闻、最新事件等。',
+          inputSchema: z.object({ query: z.string().describe('搜索关键词') }),
           execute: async ({ query }) => {
             const apiKey = process.env.TAVILY_API_KEY;
             const response = await fetch('https://api.tavily.com/search', {

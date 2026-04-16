@@ -1,7 +1,7 @@
 'use client';
  
 import React, { useRef, useEffect, useState, memo, useCallback } from 'react';
-import { Send, Bot, ImageIcon, Square, X } from 'lucide-react';
+import { Send, Globe, ImageIcon, Square, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { convertFileListToFileUIParts } from 'ai';
  
@@ -140,18 +140,25 @@ const ChatInputArea = memo(({
             />
  
             <div className="flex items-center gap-1.5 mb-1 shrink-0">
-                <button 
-                  type="button"
-                  onClick={() => setIsOnline(!isOnline)}
-                  className={cn(
-                    "p-3 rounded-full transition-all",
-                    isOnline 
-                      ? "text-[#4285f4] bg-[#4285f4]/10 shadow-[0_0_10px_rgba(66,133,244,0.2)]" 
-                      : "text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5"
-                  )}
-                >
-                  <Bot className="w-6 h-6" />
-                </button>
+                <div className="relative group/tooltip">
+                  <button 
+                    type="button"
+                    onClick={() => setIsOnline(!isOnline)}
+                    className={cn(
+                      "p-3 rounded-full transition-all",
+                      isOnline 
+                        ? "text-[#4285f4] bg-[#4285f4]/10 shadow-[0_0_10px_rgba(66,133,244,0.2)]" 
+                        : "text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5"
+                    )}
+                  >
+                    <Globe className="w-6 h-6" />
+                  </button>
+                  {/* Tooltip */}
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 text-xs font-medium text-white bg-zinc-800 dark:bg-zinc-700 rounded-lg whitespace-nowrap opacity-0 scale-95 pointer-events-none group-hover/tooltip:opacity-100 group-hover/tooltip:scale-100 transition-all duration-200 shadow-lg">
+                    {isOnline ? '联网搜索：已开启' : '联网搜索：已关闭'}
+                    <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-800 dark:border-t-zinc-700" />
+                  </span>
+                </div>
                 
                 {isLoading ? (
                   <button 
