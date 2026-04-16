@@ -12,7 +12,7 @@ ENV NEXT_CPU_COUNT=1
 # 提供充足内存给 Next.js Worker
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
