@@ -1,6 +1,8 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 import * as schema from "./schema";
+import path from "node:path";
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -9,6 +11,20 @@ const globalForDb = global as unknown as {
   db: Db | undefined;
   pool: Pool | undefined;
 };
+
+async function runMigrations(db: Db) {
+  if (process.env.NODE_ENV === "production") {
+    console.log("⏳ Running migrations...");
+    try {
+      await migrate(db, {
+        migrationsFolder: path.join(process.cwd(), "drizzle"),
+      });
+      console.log("✅ Migrations completed");
+    } catch (error) {
+      console.error("❌ Migration failed:", error);
+    }
+  }
+}
 
 function createDb() {
   if (!globalForDb.db) {
@@ -27,6 +43,11 @@ function createDb() {
     });
 
     globalForDb.db = drizzle(globalForDb.pool, { schema });
+    
+    // 在生产环境异步运行迁移
+    if (process.env.NODE_ENV === "production") {
+      runMigrations(globalForDb.db);
+    }
   }
 
   return globalForDb.db;

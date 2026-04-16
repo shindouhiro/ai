@@ -1,27 +1,27 @@
-version: '3.8'
-
 services:
   ai-app:
     image: shindouhiro/ai:latest
     container_name: ai-assistant
     restart: always
     ports:
-      - "3000:3000"
+      - "3335:3000"
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       - NODE_ENV=production
+      - AUTH_SECRET=FDxPpvOT/SgPRNmkNmBkphePsoMi+CNGyIIWSgZedcvF
+      - AUTH_TRUST_HOST=true
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ai
       - OPENAI_BASE_URL=https://api.zyai.online/v1
-      - OPENAI_API_KEY=sk-2fmJFAh9ZCJY7NIi2e573aF450Ec49AbA36c5c2d3bFaC73a
+      - OPENAI_API_KEY=sk-1lzXwaoE7Ck6rUjNA8D0F1E809044183BeB27fF3Fe0884C4
       - TAVILY_API_KEY=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
-    # 应用运行所需的外部接口配置
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
 
   postgres:
     image: postgres:16
