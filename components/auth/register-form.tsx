@@ -1,9 +1,16 @@
 "use client";
 
 import { useActionState } from "react";
-import { registerUser } from "@/lib/actions";
-import { User, Mail, Lock, AlertCircle, LogIn, LayoutGrid } from "lucide-react";
+import { registerUser } from "@/lib/actions/auth";
+import { User, Mail, Lock, LogIn } from "lucide-react";
 import Link from "next/link";
+import {
+  AuthInput,
+  AuthErrorAlert,
+  SubmitButton,
+  AuthDivider,
+  SocialLoginButton,
+} from "@/components/auth";
 
 export default function RegisterForm() {
   const [errorMessage, action, isPending] = useActionState(
@@ -23,90 +30,37 @@ export default function RegisterForm() {
       </div>
 
       <form action={action} className="flex flex-col gap-5">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium ml-1 text-black/70 dark:text-white/60">
-            用户名
-          </label>
-          <div className="relative group">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/30 dark:text-white/30 group-focus-within:text-violet-500 transition-colors" />
-            <input
-              name="name"
-              type="text"
-              placeholder="您的称呼"
-              required
-              className="w-full pl-11 pr-4 py-4 bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20 text-black dark:text-white"
-            />
-          </div>
-        </div>
+        <AuthInput
+          name="name"
+          type="text"
+          label="用户名"
+          placeholder="您的称呼"
+          icon={User}
+        />
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium ml-1 text-black/70 dark:text-white/60">
-            电子邮箱
-          </label>
-          <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/30 dark:text-white/30 group-focus-within:text-violet-500 transition-colors" />
-            <input
-              name="email"
-              type="email"
-              placeholder="hello@example.com"
-              required
-              className="w-full pl-11 pr-4 py-4 bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20 text-black dark:text-white"
-            />
-          </div>
-        </div>
+        <AuthInput
+          name="email"
+          type="email"
+          label="电子邮箱"
+          placeholder="hello@example.com"
+          icon={Mail}
+        />
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium ml-1 text-black/70 dark:text-white/60">
-            设置密码
-          </label>
-          <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/30 dark:text-white/30 group-focus-within:text-violet-500 transition-colors" />
-            <input
-              name="password"
-              type="password"
-              placeholder="••••••••"
-              required
-              className="w-full pl-11 pr-4 py-4 bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 transition-all placeholder:text-black/20 dark:placeholder:text-white/20 text-black dark:text-white"
-            />
-          </div>
-        </div>
+        <AuthInput
+          name="password"
+          type="password"
+          label="设置密码"
+          placeholder="••••••••"
+          icon={Lock}
+        />
 
-        {errorMessage && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-sm animate-shake">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
+        <AuthErrorAlert message={errorMessage} />
 
-        <button
-          disabled={isPending}
-          type="submit"
-          className="relative mt-2 px-6 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold rounded-2xl shadow-lg shadow-violet-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 overflow-hidden group"
-        >
-          {isPending ? (
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <>
-              快速注册 <LogIn className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </>
-          )}
-        </button>
+        <SubmitButton isPending={isPending} label="快速注册" icon={LogIn} />
 
-        <div className="flex items-center gap-4 my-2 px-2">
-          <div className="flex-1 h-[1px] bg-black/5 dark:bg-white/5" />
-          <span className="text-xs font-medium text-black/30 dark:text-white/20 uppercase tracking-widest leading-none">
-            或其他方式
-          </span>
-          <div className="flex-1 h-[1px] bg-black/5 dark:bg-white/5" />
-        </div>
+        <AuthDivider text="或其他方式" />
 
-        <button
-          type="button"
-          className="flex items-center justify-center gap-3 px-4 py-4 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-white transition-all hover:scale-[1.01] active:scale-[0.99]"
-        >
-          <LayoutGrid className="w-5 h-5" />
-          使用第三方账号继续
-        </button>
+        <SocialLoginButton label="使用第三方账号继续" />
       </form>
 
       <p className="mt-8 text-center text-sm text-black/40 dark:text-white/30">

@@ -59,11 +59,10 @@
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
+    --border: lab(90.952% 0 -.0000119209);
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
-    --border: lab(90.952% 0 -.0000119209);
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -162,9 +161,11 @@ body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Streamdown 渲染器的额外基础样式 */
+/* Streamdown 渲染器的额外基础样式 + 消息流体稳定性 */
 .prose {
   color: #1a1a1a;
+  overflow-anchor: auto;
+  overflow-wrap: break-word;
 }
 
 .dark .prose {
@@ -183,32 +184,17 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-
-
 /* Gemini 风格的渐进显示动画 (去除位移，防止抖动) */
 @keyframes geminiReveal {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Gemini 风格的多彩流光 Loading */
 @keyframes geminiLoadingShimmer {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .gemini-loading-bar {
@@ -219,13 +205,6 @@ body {
   background-size: 300% 300%;
   animation: geminiLoadingShimmer 3s ease infinite;
   opacity: 0.6;
-}
-
-/* 消息流体稳定性优化 */
-.prose {
-  overflow-anchor: auto;
-  overflow-wrap: break-word;
-  /* 避免长字符撑开容器导致抖动 */
 }
 
 /* 核心：只对新产生的块级元素应用一次性淡入，不再对每个字进行位移动画 */
